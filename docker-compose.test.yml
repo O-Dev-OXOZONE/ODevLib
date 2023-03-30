@@ -1,0 +1,18 @@
+# This docker-compose file contains the configuration for the pytest execution.
+version: '3'
+
+volumes:
+  postgres:
+
+
+services:
+  postgres:
+    image: 'postgres:15.2'
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: 'odevlib_example'
+      POSTGRES_PASSWORD: 'odevlib_example'
+      POSTGRES_DB: 'odevlib_example'
+    volumes:
+      - postgres:/var/lib/postgresql/data

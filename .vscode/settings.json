@@ -1,0 +1,39 @@
+{
+    // Python configuration
+    "python.analysis.typeCheckingMode": "basic",
+    "python.languageServer": "Pylance",
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.autoComplete.extraPaths": [
+        "."
+    ],
+    "python.analysis.extraPaths": [
+        "."
+    ],
+    "python.formatting.provider": "black",
+    "python.analysis.packageIndexDepths": [
+        {
+            "name": "",
+            "depth": 10,
+            "includeAllSymbols": true,
+        },
+    ],
+    // Mypy configuration
+    // "mypy.targets": [
+    //     "."
+    // ],
+    // "mypy.configFile": "mypy.ini",
+    "mypy.runUsingActiveInterpreter": true,
+    "mypy.workingDirectory": ".",
+    "python.formatting.blackArgs": [
+        "--line-length",
+        "120",
+    ],
+    "python.linting.ignorePatterns": [
+        "venv/**/*.py"
+    ],
+    "python.testing.pytestArgs": [
+        "."
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}

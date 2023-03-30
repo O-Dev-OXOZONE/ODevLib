@@ -1,0 +1,4 @@
+from _typeshed import Incomplete
+
+pre_create_historical_record: Incomplete
+post_create_historical_record: Incomplete

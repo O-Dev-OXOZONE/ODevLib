@@ -1,0 +1,6 @@
+from .models import HistoricalRecords as HistoricalRecords
+from django.utils.deprecation import MiddlewareMixin
+
+class HistoryRequestMiddleware(MiddlewareMixin):
+    def process_request(self, request) -> None: ...
+    def process_response(self, request, response): ...
