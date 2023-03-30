@@ -19,10 +19,25 @@ from odevlib.models import RBACRole
 from odevlib.models.rbac.instance_role_assignment import InstanceRoleAssignment
 from odevlib.models.rbac.mixins import RBACHierarchyModelMixin
 
-read_methods = ["GET", "OPTIONS", "HEAD"]
 create_methods = ["POST"]
+"""
+HTTP methods that use 'c' access mode.
+"""
+
+read_methods = ["GET", "OPTIONS", "HEAD"]
+"""
+HTTP methods that use 'r' access mode.
+"""
+
 write_methods = ["PUT", "PATCH"]
+"""
+HTTP methods that use 'u' access mode.
+"""
+
 delete_methods = ["DELETE"]
+"""
+HTTP methods that use 'd' access mode.
+"""
 
 
 class RBACPermissionChecker(BasePermission):
@@ -135,9 +150,7 @@ def get_complete_roles_permissions(roles: Iterable[RBACRole]) -> Mapping[str, st
     return merge_permissions(flatten(collect_role_children(role) for role in roles))
 
 
-def get_instance_user_roles(
-    user: AbstractUser, model: Type[models.Model], instance_id: int
-) -> Iterable[RBACRole]:
+def get_instance_user_roles(user: AbstractUser, model: Type[models.Model], instance_id: int) -> Iterable[RBACRole]:
     """
     Returns all roles assigned to a user for a particular instance of a model.
     This function is the root for getting roles, as its implementation may change to include
