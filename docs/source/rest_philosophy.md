@@ -1,8 +1,4 @@
-# ODevLib
-
-Opinionated O.dev Django-based library. Later referenced as ODL.
-
-ODevLib only supports PostgreSQL, other databases support is currently not planned.
+# REST API philosophy in ODevLib
 
 ## ODevLib flavor of REST API
 
@@ -17,11 +13,3 @@ data you send to server differs from data you receive from server.
 
 Usually, though, you get the same fields in retrieve/create/update serializers, plus some extra fields in retrieve
 serializers, i.e. primary keys in `id` field, and some computed stuff.
-
-## OViewSet
-
-ODevLib provides own implementation of a ViewSet. Its distinct features are:
-
-- automatic passing of additional URL lookup fields;
-- support for ODevLib flavor of REST API;
-- automatic OpenAPI schema generation for Swagger;

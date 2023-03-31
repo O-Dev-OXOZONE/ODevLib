@@ -75,13 +75,13 @@ fields of the models.
 
 The example of permissions value is:
 
-```json5
+```json
 {
-  'auth__user': 'r',
+  "auth__user": "r",
   // Read access to the entire auth_user model
-  'core_profile': 'rwd',
+  "core_profile": "rwd",
   // Read/write/delete access to the entire core_profile model
-  'auth__user__first_name': 'w'
+  "auth__user__first_name": "w"
   // Write access to the first_name field of auth_user model
 }
 ```
@@ -154,7 +154,7 @@ Returned in case given view exists and has RBAC attached.
 different serializer fields depending on the role. Otherwise, the value will
 be `null`.
 
-```json5
+```json
 {
   "able_to_call": "bool",
   "role": {

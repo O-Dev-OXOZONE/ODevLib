@@ -1,12 +1,22 @@
 Welcome to ODevLib's documentation!
 ===================================
 
+.. Note:: Theme for this documentation is still in development. Expect visual style improvements.
+
+          Sphinx is such a pile of mess...
+
+.. Attention:: The documentation is still in development. More information will be added soon.
+
 .. toctree::
    :caption: Documentation
    :maxdepth: 1
 
+   requirements
    usage
+   rest_philosophy
    models
+   views
+   rbac
 
 
 

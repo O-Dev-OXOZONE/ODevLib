@@ -33,6 +33,7 @@ extensions = [
     "autoapi.extension",
     # Theme setup
     "sphinx_rtd_theme",
+    "sphinx_rtd_dark_mode",
     # Used to parse markdown files
     "myst_parser",
 ]
