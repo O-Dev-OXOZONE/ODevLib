@@ -205,7 +205,6 @@ class RBACSerializerMixin(_Base):
         )
 
         pk = self.get_pk()
-        assert isinstance(self.Meta.model, models.Model)
         # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
         has_inheritance = isinstance(self.Meta.model, RBACHierarchyModelMixin)
 
@@ -233,7 +232,7 @@ class RBACSerializerMixin(_Base):
                 )
                 allowed_fields = get_allowed_model_fields(
                     permissions=instance_level_parent_permissions,
-                    model=f"{self.Meta.model._meta.app_label}.{self.Meta.model._meta.model_name}",
+                    model=f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}",
                     mode=mode,
                 )
                 available_fields = OrderedDict(
@@ -250,7 +249,7 @@ class RBACSerializerMixin(_Base):
 
         allowed_fields = get_allowed_model_fields(
             permissions=permissions,
-            model=f"{self.Meta.model._meta.app_label}.{self.Meta.model._meta.model_name}",
+            model=f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}",  # type: ignore
             mode=mode,
         )
         available_fields = OrderedDict(

@@ -197,10 +197,7 @@ class ORelationsMixin:
 
         # Check RBAC permissions
         if self.use_rbac:  # type: ignore
-            roles = list(get_user_roles(request.user))
-            for role in roles:
-                role.permissions = assemble_complete_role_permissions(role)
-            all_permissions = merge_permissions(roles)
+            all_permissions = merge_permissions(get_complete_instance_user_roles(request.user, instance, instance.pk))
             has_permission = has_access_to_entire_model(all_permissions, instance, "r") or request.user.is_superuser
             if not has_permission:
                 return Error(

@@ -28,7 +28,7 @@ def rbac_child_role(superuser: AbstractUser, rbac_role: RBACRole, name="test_chi
 
 
 @fixture
-def rbac_simple_permission() -> SimplePermissionSystemPermission:
+def rbac_simple_permission(superuser: AbstractUser) -> SimplePermissionSystemPermission:
     permission = SimplePermissionSystemPermission(
         subsystem="rbac",
         name="RBAC full access",
@@ -37,6 +37,6 @@ def rbac_simple_permission() -> SimplePermissionSystemPermission:
         can_update=True,
         can_delete=True,
     )
-    permission.save()
+    permission.save(user=superuser)
     return permission
 

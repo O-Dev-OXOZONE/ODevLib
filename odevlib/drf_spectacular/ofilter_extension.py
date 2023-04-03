@@ -144,6 +144,8 @@ class OFilterExtension(OpenApiFilterExtension):
                 )
                 schema = build_basic_type(OpenApiTypes.STR)
 
+        assert schema is not None
+
         # primary keys are usually non-editable (readOnly=True) and map_model_field correctly
         # signals that attribute. however this does not apply in this context.
         schema.pop('readOnly', None)

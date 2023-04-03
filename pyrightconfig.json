@@ -1,0 +1,5 @@
+{
+    "reportGeneralTypeIssues": "none", // This is done by mypy, which is more accurate
+    "reportUnboundVariable": "none", // This is done by mypy, which is more accurate
+    "reportOptionalMemberAccess": "none", // This is done by mypy, which is more accurate
+}

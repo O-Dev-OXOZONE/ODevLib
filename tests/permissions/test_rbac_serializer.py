@@ -21,10 +21,10 @@ def test_serializer_field_filtering_for_retrieve(
     """
     # Assign role to user
     assert isinstance(user, User)
-    rbac_role.permissions["name"] = "r"
+    rbac_role.permissions["odevlib__rbacrole__name"] = "r"
     rbac_role.save(user=superuser)
     sps_assignment = SimplePermissionAssignment(permission=rbac_simple_permission, user=user)
-    sps_assignment.save()
+    sps_assignment.save(user=superuser)
     assignment = RoleAssignment(role=rbac_role, user=user)
     assignment.save(user=superuser)
 

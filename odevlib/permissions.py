@@ -53,9 +53,9 @@ class SimplePermission(BasePermission):
         # TODO: check if this filter works correctly
         qs = SimplePermissionSystemPermission.objects.filter(
             pk__in=(
-                SimplePermissionAssignment.objects.filter(subsystem=self.permission_name, user=user).values_list(
-                    "permission", flat=True
-                )
+                SimplePermissionAssignment.objects.filter(
+                    permission__subsystem=self.permission_name, user=user
+                ).values_list("permission", flat=True)
             )
         )
 

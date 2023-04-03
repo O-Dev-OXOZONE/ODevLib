@@ -1,8 +1,9 @@
 from django.contrib.auth.models import User
 from django.db import models
+from odevlib.models import OModel
 
 
-class SimplePermissionSystemPermission(models.Model):
+class SimplePermissionSystemPermission(OModel):
     """
     Simple permission system allows to create permissions that control entire subsystems. They can be assigned to view/viewsets.
 
@@ -45,7 +46,7 @@ class SimplePermissionSystemPermission(models.Model):
         verbose_name_plural = "Simple permissions"
 
 
-class SimplePermissionAssignment(models.Model):
+class SimplePermissionAssignment(OModel):
     """
     Represents assignment of a simple permission system permission to a user.
     """

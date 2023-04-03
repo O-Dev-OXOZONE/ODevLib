@@ -50,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'odevlib.middleware.current_user.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'odevlib_example.urls'
