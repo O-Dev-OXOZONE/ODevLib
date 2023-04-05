@@ -9,6 +9,116 @@ import django.utils.timezone
 import simple_history.models
 
 
+def configure_odevlib(apps, schema):
+    """
+    Populates database with ODevLib built-in stuff.
+    """
+
+    # Create the system user that is used by ODevLib to create objects.
+    # It is deactivated and should not be used by anybody.
+    # This user is assigned as creator/editor of all objects touched by ODevLib itself, like core permissions.
+    User = apps.get_model(settings.AUTH_USER_MODEL)
+
+    user = User(
+        username="system",
+        first_name="System",
+        email="system@o.dev",
+        is_active=False,
+        is_staff=False,
+        is_superuser=False,
+    )
+    user.save()
+
+    # Create the most flexible SPS permissions for SPS and RBAC configuration.
+    # Every aspect of CRUD may be controlled with these.
+    SimplePermissionSystemPermission = apps.get_model("odevlib.simplepermissionsystempermission")
+    
+    permissions = [
+        SimplePermissionSystemPermission(
+            name="Can view SPS",
+            subsystem="sps",
+            can_create=False,
+            can_read=True,
+            can_update=False,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can create SPS",
+            subsystem="sps",
+            can_create=True,
+            can_read=False,
+            can_update=False,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can update SPS",
+            subsystem="sps",
+            can_create=False,
+            can_read=False,
+            can_update=True,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can delete SPS",
+            subsystem="sps",
+            can_create=False,
+            can_read=False,
+            can_update=False,
+            can_delete=True,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can view RBAC",
+            subsystem="rbac",
+            can_create=False,
+            can_read=True,
+            can_update=False,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can create RBAC",
+            subsystem="rbac",
+            can_create=True,
+            can_read=False,
+            can_update=False,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can update RBAC",
+            subsystem="rbac",
+            can_create=False,
+            can_read=False,
+            can_update=True,
+            can_delete=False,
+            created_by=user,
+            updated_by=user,
+        ),
+        SimplePermissionSystemPermission(
+            name="Can delete RBAC",
+            subsystem="rbac",
+            can_create=False,
+            can_read=False,
+            can_update=False,
+            can_delete=True,
+            created_by=user,
+            updated_by=user,
+        ),
+    ]
+
+    SimplePermissionSystemPermission.objects.bulk_create(permissions)
+
+
 class Migration(migrations.Migration):
     initial = True
 
@@ -33,9 +143,7 @@ class Migration(migrations.Migration):
                 ("error_code", models.IntegerField(verbose_name="Код ошибки")),
                 (
                     "eng_description",
-                    models.TextField(
-                        verbose_name="Техническое описание ошибки для разработчиков"
-                    ),
+                    models.TextField(verbose_name="Техническое описание ошибки для разработчиков"),
                 ),
                 (
                     "ui_description",
@@ -77,23 +185,17 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 ("name", models.TextField(verbose_name="Название роли")),
                 ("ui_name", models.TextField(verbose_name="Название роли для UI")),
                 (
                     "permissions",
-                    django.contrib.postgres.fields.hstore.HStoreField(
-                        verbose_name="Permissions assigned to this role"
-                    ),
+                    django.contrib.postgres.fields.hstore.HStoreField(verbose_name="Permissions assigned to this role"),
                 ),
                 (
                     "created_by",
@@ -133,15 +235,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 (
                     "subsystem",
@@ -202,15 +300,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 (
                     "child_role",
@@ -268,15 +362,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 (
                     "created_by",
@@ -334,15 +424,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 (
                     "model",
@@ -354,9 +440,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "instance_id",
-                    models.IntegerField(
-                        verbose_name="ID of a particular model instance"
-                    ),
+                    models.IntegerField(verbose_name="ID of a particular model instance"),
                 ),
                 (
                     "created_by",
@@ -403,21 +487,15 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 (
                     "subsystem",
@@ -497,21 +575,15 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),
@@ -594,21 +666,15 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),
@@ -691,21 +757,15 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),
@@ -788,29 +848,21 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 ("name", models.TextField(verbose_name="Название роли")),
                 ("ui_name", models.TextField(verbose_name="Название роли для UI")),
                 (
                     "permissions",
-                    django.contrib.postgres.fields.hstore.HStoreField(
-                        verbose_name="Permissions assigned to this role"
-                    ),
+                    django.contrib.postgres.fields.hstore.HStoreField(verbose_name="Permissions assigned to this role"),
                 ),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),
@@ -869,21 +921,15 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigIntegerField(
-                        auto_created=True, blank=True, db_index=True, verbose_name="ID"
-                    ),
+                    models.BigIntegerField(auto_created=True, blank=True, db_index=True, verbose_name="ID"),
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        blank=True, editable=False, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(blank=True, editable=False, verbose_name="Дата редактирования"),
                 ),
                 (
                     "model",
@@ -895,9 +941,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "instance_id",
-                    models.IntegerField(
-                        verbose_name="ID of a particular model instance"
-                    ),
+                    models.IntegerField(verbose_name="ID of a particular model instance"),
                 ),
                 ("history_id", models.AutoField(primary_key=True, serialize=False)),
                 ("history_date", models.DateTimeField(db_index=True)),
@@ -989,15 +1033,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="Дата создания"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="Дата создания"),
                 ),
                 (
                     "updated_at",
-                    models.DateTimeField(
-                        auto_now=True, verbose_name="Дата редактирования"
-                    ),
+                    models.DateTimeField(auto_now=True, verbose_name="Дата редактирования"),
                 ),
                 (
                     "created_by",
@@ -1039,5 +1079,9 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Simple permission assignments",
                 "unique_together": {("user", "permission")},
             },
+        ),
+        migrations.RunPython(
+            configure_odevlib,
+            reverse_code=migrations.RunPython.noop,
         ),
     ]

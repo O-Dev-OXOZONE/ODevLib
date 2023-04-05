@@ -37,7 +37,7 @@ class OModel(models.Model):
     history = HistoricalRecords(inherit=True)
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None, *args, **kwargs) -> None:
-        user: User = kwargs.get('user', None)
+        user: User = kwargs.get("user", None)
         if user is None and ((_user := get_user()) is not None):
             user = User.objects.get(user=_user)
         if user is None:

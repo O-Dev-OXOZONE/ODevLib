@@ -56,6 +56,31 @@ def test_do_i_have_rbac_permission_fail(
 
 
 @pytest.mark.django_db
+def test_do_i_have_rbac_permission_instance_level(
+    authorized_api_client: APIClient,
+    superuser: User,
+    user: User,
+    rbac_role: RBACRole,
+):
+    """
+    Test that a user can check if they have an instance level permission.
+    """
+    rbac_role.permissions["odevlib__rbacrole__name"] = "cr"
+    rbac_role.save(user=superuser)
+    rbac_role_assignment = InstanceRoleAssignment(
+        user=user, role=rbac_role, model="odevlib__rbacrole", instance_id=rbac_role.pk
+    )
+    rbac_role_assignment.save(user=superuser)
+
+    response = authorized_api_client.get(
+        f"/odl/do_i_have_rbac_permission/?permission=odevlib__rbacrole__name&model_name=odevlib__rbacrole&instance_id={rbac_role.pk}",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.data) == set("cr")
+
+
+@pytest.mark.django_db
 def test_get_my_roles_and_permissions_global(
     authorized_api_client: APIClient,
     superuser: User,
