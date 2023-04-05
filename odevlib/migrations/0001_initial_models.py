@@ -3,7 +3,7 @@
 from django.conf import settings
 import django.contrib.postgres.fields.hstore
 from django.contrib.postgres.operations import HStoreExtension
-from django.db import migrations, models
+from django.db import migrations, models, connection
 import django.db.models.deletion
 import django.utils.timezone
 import simple_history.models
@@ -32,7 +32,7 @@ def configure_odevlib(apps, schema):
     # Create the most flexible SPS permissions for SPS and RBAC configuration.
     # Every aspect of CRUD may be controlled with these.
     SimplePermissionSystemPermission = apps.get_model("odevlib.simplepermissionsystempermission")
-    
+
     permissions = [
         SimplePermissionSystemPermission(
             name="Can view SPS",
@@ -117,6 +117,37 @@ def configure_odevlib(apps, schema):
     ]
 
     SimplePermissionSystemPermission.objects.bulk_create(permissions)
+
+
+def create_rbac_role_immutability_trigger(apps, schema):
+    with connection.cursor() as c:
+        c.execute(
+            """
+            create or replace function table_update_guard() returns trigger
+            language plpgsql immutable parallel safe cost 1 as $body$
+            begin
+              raise exception
+                'trigger %: updating is prohibited for %',
+                tg_name, tg_argv[0]
+                using errcode = 'restrict_violation';
+              return null;
+            end;
+            $body$;
+        """
+        )
+        c.execute(
+            """
+            create trigger odevlib_rbacrole_name_guard
+            before update of name on odevlib_rbacrole 
+            for each row when (old.name is distinct from new.name)
+            execute function table_update_guard('name');
+        """
+        )
+
+
+def delete_rbac_role_immutability_trigger(apps, schema):
+    with connection.cursor() as c:
+        c.execute("drop trigger if exists odevlib_rbacrole_name_guard on odevlib_rbacrole;")
 
 
 class Migration(migrations.Migration):
@@ -1079,6 +1110,10 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "Simple permission assignments",
                 "unique_together": {("user", "permission")},
             },
+        ),
+        migrations.RunPython(
+            code=create_rbac_role_immutability_trigger,
+            reverse_code=delete_rbac_role_immutability_trigger,
         ),
         migrations.RunPython(
             configure_odevlib,
