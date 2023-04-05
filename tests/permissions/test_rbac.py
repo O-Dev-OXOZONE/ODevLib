@@ -129,7 +129,7 @@ def test_direct_instance_role_assignment(superuser: AbstractUser, user: Abstract
     assert isinstance(user, User)
     rbac_role.permissions["test_permission"] = "rwd"
     rbac_role.save(user=superuser)
-    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib_rbacrole", instance_id=rbac_role.pk)
+    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib__rbacrole", instance_id=rbac_role.pk)
     assignment.save(user=superuser)
 
     # Check that user has the permission
@@ -151,7 +151,7 @@ def test_direct_instance_role_assignment_does_not_leak_into_other_instances(
     assert isinstance(user, User)
     rbac_role.permissions["test_permission"] = "rwd"
     rbac_role.save(user=superuser)
-    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib_rbacrole", instance_id=rbac_role.pk)
+    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib__rbacrole", instance_id=rbac_role.pk)
     assignment.save(user=superuser)
 
     # Check that user has the permission
@@ -172,7 +172,7 @@ def test_direct_instance_role_assignment_does_not_leak_into_global_assignments(
     assert isinstance(user, User)
     rbac_role.permissions["test_permission"] = "rwd"
     rbac_role.save(user=superuser)
-    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib_rbacrole", instance_id=rbac_role.pk)
+    assignment = InstanceRoleAssignment(role=rbac_role, user=user, model="odevlib__rbacrole", instance_id=rbac_role.pk)
     assignment.save(user=superuser)
 
     # Check that user has the permission

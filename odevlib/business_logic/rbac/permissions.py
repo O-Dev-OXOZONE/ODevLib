@@ -162,7 +162,7 @@ def get_instance_user_roles(user: AbstractUser, model: Type[models.Model], insta
     """
     return RBACRole.objects.filter(
         pk__in=InstanceRoleAssignment.objects.filter(
-            model=f"{model._meta.app_label}_{model._meta.model_name}",
+            model=f"{model._meta.app_label}__{model._meta.model_name}",
             instance_id=instance_id,
             user=user,
         ).values_list("role", flat=True)
@@ -190,6 +190,16 @@ def get_complete_instance_user_roles(
             yield from recurse(child)
 
     return itertools.chain.from_iterable(recurse(role) for role in roles)
+
+
+def get_access_mode_for_permission(
+    permissions: Mapping[str, str],
+    permission: str,
+) -> Optional[str]:
+    """
+    Returns access mode for a particular permission for a given set of permissions.
+    """
+    return permissions.get(permission, None)
 
 
 # def get_access_mode_for_permission(

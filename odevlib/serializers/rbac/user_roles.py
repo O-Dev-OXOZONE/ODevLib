@@ -9,7 +9,9 @@ class MyRolesAndPermissionsSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text='List of RBAC roles the user has in the given context.'
     )
-    permissions = serializers.ListField(
+    permissions = serializers.DictField(
+        # Key is always a string, because of JSON specification.
+        # Value has child serializer.
         child=serializers.CharField(),
         help_text='List of permissions the user has in the given context.'
     )

@@ -1,4 +1,5 @@
 from typing import Optional
+from django.apps import apps
 from django.contrib.auth.models import AbstractUser
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -98,6 +99,12 @@ from odevlib.serializers.rbac.user_roles import MyRolesAndPermissionsSerializer
 @api_view()
 @permission_classes([IsAuthenticated])
 def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
+    """
+    Execution logic:
+    - If we only have permission_name, we get all global roles and return access mode for a requested permission.
+    - If we also have model_name and instance_id, we get all instance-level roles and return access mode for a requested permission.
+    - If we also have parent_model and parent_id, we get all instance-level roles for parent_model and return access mode for a requested permission.
+    """
     permission_name: Optional[str] = request.query_params.get("permission", None)
     model_name: Optional[str] = request.query_params.get("model_name", None)
     instance_id: Optional[str] = request.query_params.get("instance_id", None)
@@ -107,6 +114,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
     user = request.user
     assert isinstance(user, AbstractUser)
 
+    ### Checks start ###
     if permission_name is None:
         return Error(
             error_code=codes.invalid_request_data,
@@ -114,39 +122,22 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             ui_description=f'Параметр "permission" не был передан',
         ).serialize_response()
 
-    if model_name is not None and len(model_name.split("_")) != 2:
-        return Error(
-            error_code=codes.invalid_request_data,
-            eng_description=f"Expected model_name to contain one underscore, got ${model_name.count('_')}",
-            ui_description=f"model_name должен содержать одно подчеркивание, получено ${model_name.count('_')}",
-        ).serialize_response()
-
-    if parent_model is not None and parent_id is not None:
-        if len(parent_model.split("_")) != 2:
+    if model_name is not None:
+        if len(model_name.split("__")) != 2:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f"Expected parent_model to contain one underscore, got ${parent_model.count('_')}",
-                ui_description=f"parent_model должен содержать одно подчеркивание, получено ${parent_model.count('_')}",
+                eng_description=f"Expected model_name to contain two parts separated by __",
+                ui_description=f"model_name должен содержать две части, разделенные __",
             ).serialize_response()
-
         try:
-            parent_id_int = int(parent_id)
-        except ValueError:
+            model_type = apps.get_model(model_name.replace("__", "."))
+        except LookupError:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f'Expected int in parent_id, but got "{instance_id}"',
-                ui_description=f'В parent_id ожидался int, был получен "{instance_id}"',
+                eng_description=f'Could not find model "{model_name}"',
+                ui_description=f'Не найдена модель "{model_name}"',
             ).serialize_response()
 
-        value = permissions.get_access_mode_for_permission(
-            user,
-            permission_name,
-            parent_model,
-            parent_id_int,
-        )
-        return Response(str(value))
-
-    instance_id_int: int | None = None
     if instance_id is not None:
         try:
             instance_id_int = int(instance_id)
@@ -157,11 +148,59 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
                 ui_description=f'В instance_id ожидался int, был получен "{instance_id}"',
             ).serialize_response()
 
+    if parent_model is not None:
+        if len(parent_model.split("_")) != 2:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f"Expected parent_model to contain two underscores, got ${parent_model.count('_')}",
+                ui_description=f"parent_model должен содержать два подчеркивания, получено ${parent_model.count('_')}",
+            ).serialize_response()
+        try:
+            parent_model_type = apps.get_model(parent_model)
+        except LookupError:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f'Could not find model "{parent_model}"',
+                ui_description=f'Не найдена модель "{parent_model}"',
+            ).serialize_response()
+
+    if parent_id is not None:
+        try:
+            parent_id_int = int(parent_id)
+        except ValueError:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f'Expected int in parent_id, but got "{instance_id}"',
+                ui_description=f'В parent_id ожидался int, был получен "{instance_id}"',
+            ).serialize_response()
+    ### Checks end ###
+
+    if model_name is not None and instance_id is not None:
+        if parent_model is not None and parent_id is not None:
+            # Get instance-level permissions using parent model
+            perms = permissions.merge_permissions(
+                permissions.get_complete_instance_user_roles(
+                    user,
+                    parent_model_type,
+                    parent_id_int,
+                )
+            )
+        else:
+            # Get instance-level permissions using model
+            perms = permissions.merge_permissions(
+                permissions.get_complete_instance_user_roles(
+                    user,
+                    model_type,
+                    instance_id_int,
+                )
+            )
+    else:
+        # Get global permissions
+        perms = permissions.merge_permissions(permissions.get_complete_user_roles(user))
+
     value = permissions.get_access_mode_for_permission(
-        user,
+        perms,
         permission_name,
-        model_name,
-        instance_id_int,
     )
     return Response(str(value))
 
@@ -170,10 +209,10 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
     summary="Получить список всех RBAC ролей и прав текущего пользователя",
     request=None,
     description="Возвращает список всех ролей и прав текущего пользователя. "
-    "Если переданы параметры \"model_name\" и \"instance_id\", проверяет еще "
+    'Если переданы параметры "model_name" и "instance_id", проверяет еще '
     "и instance-level роли для заданной сущности.",
     parameters=[
-    OpenApiParameter(
+        OpenApiParameter(
             "model_name",
             description="**[Для instance-level RBAC]**\n\n"
             "Название модели, которую клиент просит использовать для проверки "
@@ -194,9 +233,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             required=False,
         ),
     ],
-    responses={
-        200: MyRolesAndPermissionsSerializer()
-    },
+    responses={200: MyRolesAndPermissionsSerializer()},
 )
 @api_view()
 def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
@@ -206,14 +243,57 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
     user = request.user
     assert isinstance(user, AbstractUser)
 
-    roles: list[RBACRole] = []
+    if model_name is not None:
+        # Handle instance-level case
+        if len(model_name.split("__")) != 2:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f"Expected model_name to contain two parts separated by __",
+                ui_description=f"model_name должен содержать две части, разделенные __",
+            ).serialize_response()
+        try:
+            model_type = apps.get_model(model_name.replace("__", "."))
+        except LookupError:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f'Could not find model "{model_name}"',
+                ui_description=f'Не найдена модель "{model_name}"',
+            ).serialize_response()
 
-    # Populate roles with global-level assignments
-    roles.extend(permissions.get_user_roles(user))
+    if instance_id is not None:
+        try:
+            instance_id_int = int(instance_id)
+        except ValueError:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description=f'Expected int in instance_id, but got "{instance_id}"',
+                ui_description=f'В instance_id ожидался int, был получен "{instance_id}"',
+            ).serialize_response()
 
     if model_name is not None and instance_id is not None:
-        # Populate roles with instance-level assignments
-        permissions.get_instance_level_roles_for_user(user, model_name, instance_id)
+        # Return instance-level roles and permissions
+        roles = list(permissions.get_complete_instance_user_roles(user, model_type, instance_id_int))
+        perms = permissions.merge_permissions(roles)
+        return Response(
+            MyRolesAndPermissionsSerializer(
+                {
+                    "roles": map(lambda role: role.name, roles),
+                    "permissions": perms,
+                }
+            ).data
+        )
+    else:
+        # Return global roles and permissions
+        roles = list(permissions.get_user_roles(user))
+        perms = permissions.merge_permissions(roles)
+        return Response(
+            MyRolesAndPermissionsSerializer(
+                {
+                    "roles": map(lambda role: role.name, roles),
+                    "permissions": perms,
+                }
+            ).data
+        )
 
 
 @extend_schema(
@@ -245,9 +325,7 @@ def list_all_rbac_permissions(request: Request, *args, **kwargs) -> Response:
             ]
 
             results.append(f"{app_name}__{model_name}")
-            results.extend(
-                [f"{app_name}__{model_name}__{field_name}" for field_name in fields]
-            )
+            results.extend([f"{app_name}__{model_name}__{field_name}" for field_name in fields])
 
     results = sorted(list(set(results)))
 
