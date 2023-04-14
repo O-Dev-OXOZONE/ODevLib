@@ -4,6 +4,8 @@ import typing
 from collections import OrderedDict
 from typing import Optional, Type
 from typing import TYPE_CHECKING
+from errors import codes
+from errors.models import Error
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -176,8 +178,16 @@ class RBACSerializerMixin(_Base):
             # This should never happen, as even unauthorized users have AnonymousUser instance.
             raise APIException(f"Couldn't obtain user in {self.__class__.__name__}")
 
-        # This situation doesn't seem valid
-        assert "action" in self.context, f"Action is not specified in context of {self.__class__.__name__}"
+        # We require context, as it contains action and we can't get fields without knowning
+        # what are we getting fields for.
+        # assert self.context is not None, f"Context was not passed to {self.__class__.__name__}"
+        # assert "action" in self.context, f"Action is not specified in context of {self.__class__.__name__}"
+        if self.context is None or "action" not in self.context:
+            Error(
+                error_code=codes.internal_server_error,
+                eng_description="Action was not passed to RBACSerializer .get_fields()",
+                ui_description="Action не был передан в .get_fields() RBACSerializer'а",
+            ).save()
 
         # Give full access to all fields to superusers
         if user.is_superuser:

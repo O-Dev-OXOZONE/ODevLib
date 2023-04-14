@@ -168,7 +168,7 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
             )
 
 
-class OModelViewSet(OViewSet, OModelMixins):
+class OModelViewSet(OViewSet[T], OModelMixins, Generic[T]):
     """
     Contains OViewSet and all model mixins for easy importing.
     """

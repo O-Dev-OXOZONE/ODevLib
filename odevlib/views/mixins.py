@@ -48,11 +48,6 @@ class OListMixin:
     """
 
     def list(self, request, *args, **kwargs):
-        queryset = prefetch(self.get_queryset(), self.serializer_class)  # type: ignore
-        if hasattr(self, "filter_backends"):
-            for backend in list(self.filter_backends):  # type: ignore
-                queryset = backend().filter_queryset(self.request, queryset, self)  # type: ignore
-
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
         additional_kwargs.pop(self.lookup_url_kwarg, None)  # type: ignore
@@ -62,6 +57,11 @@ class OListMixin:
             "request": request,
             "action": "list",
         }
+
+        queryset = prefetch(self.get_queryset(), self.serializer_class, context=context)  # type: ignore
+        if hasattr(self, "filter_backends"):
+            for backend in list(self.filter_backends):  # type: ignore
+                queryset = backend().filter_queryset(self.request, queryset, self)  # type: ignore
 
         serializer = self.serializer_class(queryset, many=True, context=context)  # type: ignore
         return Response(serializer.data)

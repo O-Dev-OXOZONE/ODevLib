@@ -1,5 +1,5 @@
 import inspect
-from typing import Type, Union
+from typing import Any, Optional, Type, Union
 
 from django.core.exceptions import FieldError
 from django.db import models
@@ -25,6 +25,7 @@ def prefetch(
     excluded_fields=None,
     extra_select_fields=None,
     extra_prefetch_fields=None,
+    context: Optional[dict[str, Any]] = None,
 ) -> QuerySet:
     if not isinstance(excluded_fields, (set, list)) and excluded_fields is not None:
         raise TypeError(f"excluded_fields must be a list or a set if supplied. Received {type(excluded_fields)}")
@@ -43,7 +44,7 @@ def prefetch(
     extra_select_fields = set() if extra_select_fields is None else set(extra_select_fields)
     extra_prefetch_fields = set() if extra_prefetch_fields is None else set(extra_prefetch_fields)
 
-    select_related, prefetch_related = _prefetch(serializer)
+    select_related, prefetch_related = _prefetch(serializer, context=context)
     select_related = (select_related | extra_select_fields) - excluded_fields
     prefetch_related = (prefetch_related | extra_prefetch_fields) - excluded_fields
 
@@ -63,7 +64,12 @@ def prefetch(
         )
 
 
-def _prefetch(serializer: Union[Type[BaseSerializer], BaseSerializer], path=None, indentation=0):
+def _prefetch(
+    serializer: Union[Type[BaseSerializer], BaseSerializer],
+    path=None,
+    indentation=0,
+    context: Optional[dict[str, Any]] = None,
+):
     """
     Returns prefetch_related, select_related
     :param serializer:
@@ -79,7 +85,7 @@ def _prefetch(serializer: Union[Type[BaseSerializer], BaseSerializer], path=None
     prefetch_related = set()
 
     if inspect.isclass(serializer):
-        serializer_instance = serializer()
+        serializer_instance = serializer(context=context)
     else:
         serializer_instance = serializer
 
