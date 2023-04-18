@@ -21,12 +21,17 @@ def configure_odevlib(apps, schema):
 
     user = User(
         username="system",
-        first_name="System",
         email="system@o.dev",
         is_active=False,
         is_staff=False,
         is_superuser=False,
     )
+    if hasattr(user, "first_name"):
+        user.first_name = "System"
+    if hasattr(user, "last_name"):
+        user.last_name = ""
+    if hasattr(user, "name"):
+        user.name = "System"
     user.save()
 
     # Create the most flexible SPS permissions for SPS and RBAC configuration.
