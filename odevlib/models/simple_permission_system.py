@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
 from odevlib.models import OModel
@@ -51,7 +52,11 @@ class SimplePermissionAssignment(OModel):
     Represents assignment of a simple permission system permission to a user.
     """
 
-    user = models.ForeignKey(User, verbose_name="User", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="User",
+        on_delete=models.CASCADE,
+    )
     permission = models.ForeignKey(
         SimplePermissionSystemPermission,
         verbose_name="Permission",

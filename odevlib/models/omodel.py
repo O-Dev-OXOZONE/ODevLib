@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords  # type: ignore
@@ -18,7 +19,7 @@ class OModel(models.Model):
         verbose_name="Дата создания",
     )
     created_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         related_name="created_%(model_name)ss",
         verbose_name="Создатель",
         on_delete=models.PROTECT,
@@ -28,7 +29,7 @@ class OModel(models.Model):
         verbose_name="Дата редактирования",
     )
     updated_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         related_name="updated_%(model_name)ss",
         verbose_name="Последний редактор",
         on_delete=models.PROTECT,

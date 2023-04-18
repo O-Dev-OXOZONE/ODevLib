@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser, User
 from django.db import models
 from django.db.models import Manager
@@ -27,7 +28,7 @@ class InstanceRoleAssignment(OModel):
         verbose_name_plural = "Role assignments for instances"
 
     role = models.ForeignKey(RBACRole, verbose_name="Role", on_delete=models.CASCADE)
-    user = models.ForeignKey(User, verbose_name="User", on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, verbose_name="User", on_delete=models.CASCADE)
     model = models.CharField(max_length=255, verbose_name="Full model name",
                              help_text="Format is app_model")
     instance_id = models.IntegerField(verbose_name="ID of a particular model instance")
