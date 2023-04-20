@@ -212,7 +212,7 @@ class ORelationsMixin:
         return Response(response_serializer.data)
 
 
-class OModelMixins(OCreateMixin, OUpdateMixin, OListMixin, ORetrieveMixin, ODestroyMixin, ORelationsMixin):
+class OModelMixins(OCreateMixin, OUpdateMixin, OListMixin, ORetrieveMixin, ODestroyMixin):
     """
     Contains all model methods in a single mixin for easy import.
     """
