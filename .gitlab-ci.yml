@@ -16,6 +16,7 @@ Build docs:
   variables:
     IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
   script:
+    - rm -rf sphinx_rtd_dark_mode_repo
     - git clone https://github.com/IamMaxim/sphinx_rtd_dark_mode.git sphinx_rtd_dark_mode_repo
     - rm sphinx_rtd_dark_mode
     - cp -r sphinx_rtd_dark_mode_repo/sphinx_rtd_dark_mode .
