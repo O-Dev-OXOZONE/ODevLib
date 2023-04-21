@@ -31,5 +31,5 @@ Deploy docs:
     IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker compose -f ci/docker-compose.docs.yml pull
-    - docker compose -f ci/docker-compose.docs.yml up -d
+    - docker-compose -f ci/docker-compose.docs.yml pull
+    - docker-compose -f ci/docker-compose.docs.yml up -d
