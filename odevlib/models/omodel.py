@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
-from django.contrib.auth.models import User
-from simple_history.models import HistoricalRecords  # type: ignore
+from simple_history.models import HistoricalRecords
+from o_gpt.users.models import User  # type: ignore
 
 from odevlib.middleware import get_user
 
@@ -39,6 +39,7 @@ class OModel(models.Model):
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None, *args, **kwargs) -> None:
         user: User = kwargs.get("user", None)
+        assert isinstance(user, User)
         if user is None and ((_user := get_user()) is not None):
             user = _user
         if user is None:
