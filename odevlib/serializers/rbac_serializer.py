@@ -4,8 +4,8 @@ import typing
 from collections import OrderedDict
 from typing import Optional, Type
 from typing import TYPE_CHECKING
-from errors import codes
-from errors.models import Error
+from odevlib.errors import codes
+from odevlib.models.errors import Error
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
