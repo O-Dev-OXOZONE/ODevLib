@@ -1,0 +1,34 @@
+image: atnartur/docker:latest
+
+stages:
+  - test
+  - build
+  - deploy
+
+Test:
+  stage: test
+  script:
+    - docker build -t odevlib-test -f ci/Dockerfile.test .
+    - docker run --rm odevlib-test
+
+Build docs:
+  stage: build
+  variables:
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
+  script:
+    - git submodule init
+    - git submodule update
+    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHA" -t "$IMAGE_NAME:latest" -f ci/Dockerfile.docs .
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
+
+Deploy docs:
+  stage: deploy
+  needs:
+    - Build docs
+  variables:
+    IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker compose -f ci/docker-compose.docs.yml pull
+    - docker compose -f ci/docker-compose.docs.yml up -d

@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.urls import URLPattern, URLResolver
 
+# TODO: wrap this into a function
+
 all_urlpatterns = __import__(settings.ROOT_URLCONF).urls.urlpatterns
 detail_views_list: list[str] = []
 

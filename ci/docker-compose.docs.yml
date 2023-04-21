@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  docs:
+    image: $CI_REGISTRY_IMAGE/docs:$CI_COMMIT_SHA
+    environment:
+      VIRTUAL_HOST: odevlib.mywarmplace.net
+      LETSENCRYPT_HOST: odevlib.mywarmplace.net
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external:
+      name: nginx-proxy
