@@ -1,7 +1,7 @@
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.db import models
-from simple_history.models import HistoricalRecords
-from o_gpt.users.models import User  # type: ignore
+from simple_history.models import HistoricalRecords  # type: ignore
 
 from odevlib.middleware import get_user
 
