@@ -1,7 +1,7 @@
 from typing import Tuple
 from pytest import fixture
 
-from django.contrib.auth.models import User, AbstractUser
+from django.contrib.auth.models import AbstractUser
 
 from odevlib.models.rbac.role_hierarchy import RoleHierarchyEntry
 from odevlib.models.rbac.role import RBACRole
