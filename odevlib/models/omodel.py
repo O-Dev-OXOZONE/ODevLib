@@ -44,8 +44,8 @@ class OModel(models.Model):
         if user is None:
             raise ValueError("user was not passed to the OModel")
 
-        self.updated_by = user
+        self.updated_by = user  # type: ignore
         if not self.pk:
-            self.created_by = user
+            self.created_by = user  # type: ignore
 
         super().save(force_insert, force_update, using, update_fields)
