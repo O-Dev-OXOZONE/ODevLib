@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from rest_framework.request import Request
 
 request_local = threading.local()
-user_local = None
+user_local = None  # type: ignore
 
 
 def get_request() -> Union[Request, None]:
