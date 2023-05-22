@@ -39,7 +39,7 @@ extensions = [
 ]
 
 autoapi_type = "python"
-autoapi_dirs = ["../../odevlib"]
+autoapi_dirs = ["../odevlib"]
 autoapi_add_toctree_entry = False
 
 templates_path = ["_templates"]
