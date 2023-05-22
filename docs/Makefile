@@ -5,19 +5,25 @@
 # from the environment for the first two.
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = source
-BUILDDIR      = build
+SOURCEDIR     = .
+BUILDDIR      = ./_build
+APP = ../odevlib
+
+.PHONY: help livehtml apidocs Makefile
 
 # Put it first so that "make" without argument is like "make help".
 help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -c .
 
-build:
-	rm -rf "$(BUILDDIR)" && "$(SPHINXBUILD)" -b html "$(SOURCEDIR)" "$(BUILDDIR)/html"
+# Build, watch and serve docs with live reload
+livehtml:
+	sphinx-autobuild -b html --host 0.0.0.0 --port 9000 --watch $(APP) -c . . $(BUILDDIR)/html
 
-.PHONY: help build Makefile
+# Outputs rst files from django application code
+apidocs:
+	sphinx-apidoc -o ./api $(APP)
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O) -c .

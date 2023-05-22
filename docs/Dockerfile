@@ -9,7 +9,7 @@ COPY poetry.lock .
 
 RUN poetry install
 
-RUN cd docs && make build
+RUN cd docs && make apidocs && make html
 
 
 FROM nginx:1.14-alpine
@@ -20,4 +20,4 @@ RUN rm -rf /etc/nginx/conf.d
 COPY docs/nginx.conf /etc/nginx/nginx.conf
 
 # Copy build dist files to NGINX image
-COPY --from=0 /app/docs/build/html /app
+COPY --from=0 /app/docs/_build/html /app

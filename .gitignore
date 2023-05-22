@@ -1,7 +1,7 @@
 **/__pycache__
 
 venv
-docs/build
-docs/source/_autosummary
+docs/_build
+docs/api
 .DS_Store
 .coverage
