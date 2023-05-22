@@ -20,7 +20,7 @@ Build docs:
     - git clone https://github.com/IamMaxim/sphinx_rtd_dark_mode.git sphinx_rtd_dark_mode_repo
     - rm sphinx_rtd_dark_mode
     - cp -r sphinx_rtd_dark_mode_repo/sphinx_rtd_dark_mode .
-    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHA" -t "$IMAGE_NAME:latest" -f ci/Dockerfile.docs .
+    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHA" -t "$IMAGE_NAME:latest" -f docs/Dockerfile .
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
 
