@@ -2,12 +2,12 @@ FROM python:3.11.2-bullseye
 
 WORKDIR /app
 
-# RUN pip3 install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host files.pythonhosted.org -upgrade pip
-RUN pip install poetry
-COPY pyproject.toml .
-COPY poetry.lock .
+RUN pip install poetry && poetry config virtualenvs.create false
+COPY pyproject.toml poetry.lock ./
 
 RUN poetry install
+
+COPY . .
 
 RUN cd docs && make apidocs && make html
 
