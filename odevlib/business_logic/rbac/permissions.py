@@ -182,7 +182,11 @@ def get_complete_instance_user_roles(
     Keep in mind that this function also includes non-instance-level roles, so this is to-go function if you want to
     obtain roles for serializer/view permission checking.
     """
-    roles = get_instance_user_roles(user, model, instance_id)
+    all_models = get_all_rbac_model_parents(model.objects.get(pk=instance_id))
+    roles = flatten([
+        get_instance_user_roles(user, instance.__class__, instance.pk) 
+        for instance in all_models
+    ])
 
     def recurse(role: RBACRole) -> Iterable[RBACRole]:
         yield role
@@ -328,7 +332,7 @@ def get_all_rbac_model_parents(model: models.Model) -> Iterable[models.Model]:
     """
     Returns all recursive parents of the given RBAC-hierarchy-enabled model instance.
     """
-    local_model: models.Model | None = model
+    local_model: models.Model = model
     yield model
     while isinstance(local_model, RBACHierarchyModelMixin):
         local_model = local_model.get_rbac_parent()

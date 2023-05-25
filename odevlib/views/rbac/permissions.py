@@ -48,7 +48,7 @@ from odevlib.serializers.rbac.user_roles import MyRolesAndPermissionsSerializer
             description="**[Для instance-level RBAC]**\n\n"
             "Название модели, которую клиент просит использовать для проверки "
             "instance-level роли.\n\n"
-            "Формат: `appname_modelname`",
+            "Формат: `appname__modelname`",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             required=False,
@@ -149,14 +149,14 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             ).serialize_response()
 
     if parent_model is not None:
-        if len(parent_model.split("_")) != 2:
+        if len(parent_model.split("__")) != 2:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f"Expected parent_model to contain two underscores, got ${parent_model.count('_')}",
-                ui_description=f"parent_model должен содержать два подчеркивания, получено ${parent_model.count('_')}",
+                eng_description=f"Expected parent_model to contain two underscores, got {len(parent_model.split('__'))}",
+                ui_description=f"parent_model должен содержать два подчеркивания, получено {len(parent_model.split('__'))}",
             ).serialize_response()
         try:
-            parent_model_type = apps.get_model(parent_model)
+            parent_model_type = apps.get_model(parent_model.replace("__", "."))
         except LookupError:
             return Error(
                 error_code=codes.invalid_request_data,
