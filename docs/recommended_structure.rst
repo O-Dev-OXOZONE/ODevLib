@@ -9,8 +9,14 @@ Generally, we recommend sticking to the functional programming philosophy:
   - Use type hints everywhere.
   - Use ``mypy`` to ensure type safety.
 
+Unfortunately, it is practically impossible to use function programming in Python, because lambda functions are
+after-thought in this language. While they are present, you can only write single expression in the body, and you can't
+ use statements. That means no ``if``, ``for``, etc.
+
+But the philosophy still stands, and we can use it to write better code.
+
 What is ``mypy``?
----------------
+-----------------
 
 Mypy is a static type checker for Python. Currently, it is the most sophisticated type checker, followed by Pyright, then followed by PyCharm's type checker. It's biggest advantage is presence of plugins, which allow type checking for Django. The reason why Django is so hard to type-check can be found `here <why_django_is_hard_to_typecheck>`_.
 
