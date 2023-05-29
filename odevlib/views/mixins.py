@@ -7,8 +7,7 @@ from rest_framework.response import Response
 from odevlib.errors import codes
 from odevlib.models.errors import Error
 from odevlib.business_logic.rbac.permissions import (
-    get_complete_instance_user_roles,
-    get_user_roles,
+    get_complete_instance_rbac_roles,
     has_access_to_entire_model,
     merge_permissions,
 )
@@ -155,7 +154,7 @@ class ODestroyMixin:
         # Check RBAC permissions
         if self.use_rbac:  # type: ignore
             all_permissions = merge_permissions(
-                get_complete_instance_user_roles(
+                get_complete_instance_rbac_roles(
                     request.user,
                     instance,
                     instance.pk,
@@ -197,7 +196,7 @@ class ORelationsMixin:
 
         # Check RBAC permissions
         if self.use_rbac:  # type: ignore
-            all_permissions = merge_permissions(get_complete_instance_user_roles(request.user, instance, instance.pk))
+            all_permissions = merge_permissions(get_complete_instance_rbac_roles(request.user, instance, instance.pk))
             has_permission = has_access_to_entire_model(all_permissions, instance, "r") or request.user.is_superuser
             if not has_permission:
                 return Error(

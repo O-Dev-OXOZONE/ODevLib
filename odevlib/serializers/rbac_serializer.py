@@ -18,9 +18,9 @@ from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from odevlib.business_logic.rbac.permissions import (
     get_allowed_model_fields,
-    get_complete_instance_user_roles,
-    get_instance_user_roles,
-    get_user_roles,
+    get_complete_instance_rbac_roles,
+    get_instance_rbac_roles,
+    get_direct_rbac_roles,
     has_access_to_model_field,
     merge_permissions,
 )
@@ -204,7 +204,7 @@ class RBACSerializerMixin(_Base):
             instance = self.instance
 
         # Global permissions are used in cases when we do not have access to the instance.
-        global_permissions = merge_permissions(get_user_roles(user))
+        global_permissions = merge_permissions(get_direct_rbac_roles(user))
         globally_available_fields = OrderedDict(
             [
                 (field_name, field)
@@ -225,7 +225,7 @@ class RBACSerializerMixin(_Base):
                 return globally_available_fields
             else:
                 # We have a parent, use it.
-                roles = get_user_roles(user)
+                roles = get_direct_rbac_roles(user)
                 assert isinstance(self.Meta.model, RBACHierarchyModelMixin)
                 parent_model = self.Meta.model.get_rbac_parent_model()
                 assert isinstance(parent_model, models.Model)
@@ -238,7 +238,7 @@ class RBACSerializerMixin(_Base):
                     # If we don't have parent pk, fall back to global permissions.
                     return globally_available_fields
                 instance_level_parent_permissions = merge_permissions(
-                    get_instance_user_roles(user, parent_model, parent_pk)
+                    get_instance_rbac_roles(user, parent_model, parent_pk)
                 )
                 allowed_fields = get_allowed_model_fields(
                     permissions=instance_level_parent_permissions,
@@ -254,7 +254,7 @@ class RBACSerializerMixin(_Base):
                 )
                 return available_fields
         else:
-            roles = get_user_roles(user)
+            roles = get_direct_rbac_roles(user)
         permissions = merge_permissions(roles)
 
         allowed_fields = get_allowed_model_fields(

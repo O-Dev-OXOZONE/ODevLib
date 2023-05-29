@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth.models import AbstractUser, User
 from rest_framework.test import APIClient
-from odevlib.business_logic.rbac.permissions import get_roles_permissions, get_user_roles
+from odevlib.business_logic.rbac.permissions import get_roles_permissions, get_direct_rbac_roles
 
 from odevlib.models.rbac.role import RBACRole
 from odevlib.models.rbac.role_assignment import RoleAssignment

@@ -2,18 +2,13 @@ import itertools
 from collections import defaultdict
 from typing import Mapping
 
-from rest_framework.exceptions import APIException
 
 from odevlib.models import RBACRole
-from odevlib.models.rbac.role_hierarchy import RoleHierarchyEntry
 from odevlib.utils.functional import flatten
 from typing import Iterable, Mapping, Optional, Type
 
-from django.apps.registry import apps
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from rest_framework.permissions import BasePermission
-from rest_framework.request import Request
 
 from odevlib.models import RBACRole
 from odevlib.models.rbac.instance_role_assignment import InstanceRoleAssignment
@@ -40,55 +35,55 @@ HTTP methods that use 'd' access mode.
 """
 
 
-class RBACPermissionChecker(BasePermission):
-    """
-    Checks user's permissions against RBAC permission.
-    """
+# class RBACPermissionChecker(BasePermission):
+#     """
+#     Checks user's permissions against RBAC permission.
+#     """
 
-    permission: str
+#     permission: str
 
-    def __init__(self, permission: str) -> None:
-        super().__init__()
-        self.permission = permission
+#     def __init__(self, permission: str) -> None:
+#         super().__init__()
+#         self.permission = permission
 
-    def has_permission(self, request: Request, view) -> bool:
-        # Workaround to ensure DjangoModelPermissions are not applied
-        # to the root view when using DefaultRouter.
-        if getattr(view, "_ignore_model_permissions", False):
-            return True
+#     def has_permission(self, request: Request, view) -> bool:
+#         # Workaround to ensure DjangoModelPermissions are not applied
+#         # to the root view when using DefaultRouter.
+#         if getattr(view, "_ignore_model_permissions", False):
+#             return True
 
-        # Ensure user is available and authenticated
-        if not request.user or not request.user.is_authenticated:
-            return False
-        assert isinstance(request.user, AbstractUser)
+#         # Ensure user is available and authenticated
+#         if not request.user or not request.user.is_authenticated:
+#             return False
+#         assert isinstance(request.user, AbstractUser)
 
-        if request.user.is_superuser:
-            return True
+#         if request.user.is_superuser:
+#             return True
 
-        user: AbstractUser = request.user
-        is_create: bool = request.method in create_methods
-        is_write: bool = request.method in write_methods
-        is_delete: bool = request.method in delete_methods
-        is_read: bool = request.method in read_methods
+#         user: AbstractUser = request.user
+#         is_create: bool = request.method in create_methods
+#         is_write: bool = request.method in write_methods
+#         is_delete: bool = request.method in delete_methods
+#         is_read: bool = request.method in read_methods
 
-        permissions = merge_permissions(get_complete_user_roles(user))
+#         permissions = merge_permissions(get_complete_user_roles(user))
 
-        value: Optional[str] = permissions.get(self.permission, None)
-        if value is None:
-            return False
-        if is_create:
-            return "c" in value
-        elif is_write:
-            return "u" in value
-        elif is_delete:
-            return "d" in value
-        elif is_read:
-            return "r" in value
-        else:
-            raise APIException("Unknown method")
+#         value: Optional[str] = permissions.get(self.permission, None)
+#         if value is None:
+#             return False
+#         if is_create:
+#             return "c" in value
+#         elif is_write:
+#             return "u" in value
+#         elif is_delete:
+#             return "d" in value
+#         elif is_read:
+#             return "r" in value
+#         else:
+#             raise APIException("Unknown method")
 
 
-def get_user_roles(user: AbstractUser) -> Iterable[RBACRole]:
+def get_direct_rbac_roles(user: AbstractUser) -> Iterable[RBACRole]:
     """
     Returns all roles directly assigned to a user.
     Result does NOT include inherited roles.
@@ -99,7 +94,7 @@ def get_user_roles(user: AbstractUser) -> Iterable[RBACRole]:
     return RBACRole.objects.for_user(user)
 
 
-def get_complete_user_roles(user: AbstractUser) -> Iterable[RBACRole]:
+def get_complete_rbac_roles(user: AbstractUser) -> Iterable[RBACRole]:
     """
     Returns all roles assigned to a user, recursively following children.
 
@@ -110,7 +105,7 @@ def get_complete_user_roles(user: AbstractUser) -> Iterable[RBACRole]:
 
     TODO: introduce caching
     """
-    roles = get_user_roles(user)
+    roles = get_direct_rbac_roles(user)
 
     def recurse(role: RBACRole) -> Iterable[RBACRole]:
         yield role
@@ -133,7 +128,9 @@ def get_roles_permissions(roles: Iterable[RBACRole]) -> Mapping[str, str]:
 
 def collect_role_children(role: RBACRole) -> Iterable[RBACRole]:
     """
-    Collects all children of a role, recursively.
+    Collects all children roles of a role, recursively.
+
+    Only has effect if project has RBAC role hierarchy set up.
     """
     yield role
     for child in RBACRole.objects.children_of(role):
@@ -150,9 +147,9 @@ def get_complete_roles_permissions(roles: Iterable[RBACRole]) -> Mapping[str, st
     return merge_permissions(flatten(collect_role_children(role) for role in roles))
 
 
-def get_instance_user_roles(user: AbstractUser, model: Type[models.Model], instance_id: int) -> Iterable[RBACRole]:
+def get_instance_rbac_roles(user: AbstractUser, model: Type[models.Model], instance_id: int) -> Iterable[RBACRole]:
     """
-    Returns all roles assigned to a user for a particular instance of a model.
+    Returns all roles directly assigned to a user for a particular instance of a model.
     This function is the root for getting roles, as its implementation may change to include
     caching, other databases, etc.
 
@@ -169,13 +166,13 @@ def get_instance_user_roles(user: AbstractUser, model: Type[models.Model], insta
     )
 
 
-def get_complete_instance_user_roles(
+def get_complete_instance_rbac_roles(
     user: AbstractUser,
     model: Type[models.Model],
     instance_id: int,
 ) -> Iterable[RBACRole]:
     """
-    Returns all roles assigned to a user for a particular instance of a model, recursively following children.
+    Returns all roles assigned to a user for a particular instance of a model, recursively following children models.
     This function is the root for getting roles, as its implementation may change to include
     caching, other databases, etc.
 
@@ -184,7 +181,7 @@ def get_complete_instance_user_roles(
     """
     all_models = get_all_rbac_model_parents(model.objects.get(pk=instance_id))
     roles = flatten([
-        get_instance_user_roles(user, instance.__class__, instance.pk) 
+        get_instance_rbac_roles(user, instance.__class__, instance.pk) 
         for instance in all_models
     ])
 
@@ -204,53 +201,6 @@ def get_access_mode_for_permission(
     Returns access mode for a particular permission for a given set of permissions.
     """
     return permissions.get(permission, None)
-
-
-# def get_access_mode_for_permission(
-#    user: AbstractUser,
-#    permission: str,
-#    model_name: str | None,
-#    instance_id: int | None,
-# ) -> Optional[str]:
-#    """
-#    Returns access mode for a particular permission for a given user.
-#    """
-#    resulting_access_mode: set[str] = set()
-#
-#    user_roles: list[RBACRole] = list(get_user_roles(user))
-#
-#    # If instance role assignment data was passed, extend the list of roles with instance-assigned
-#    # roles for the particular user.
-#    if model_name is not None and instance_id is not None:
-#        model = apps.get_model(model_name.replace("_", "."))
-#        instance_access_modes = get_instance_level_access_mode_for_entire_model(
-#            user, model, instance_id
-#        )
-#        for mode in instance_access_modes:
-#            resulting_access_mode.add(mode)
-#        # instance_roles: list[RBACRole] = list(
-#        #     RBACRole.objects.filter(
-#        #         pk__in=InstanceRoleAssignment.objects.filter(
-#        #             model=model_name, instance_id=instance_id, user=user
-#        #         ).values_list("role", flat=True)
-#        #     ).all()
-#        # )
-#        # user_roles.extend(instance_roles)
-#        # logger.info(f"Adding instance_roles: {instance_roles}")
-#        # logger.info(f"Full list of user_roles: {user_roles}")
-#
-#    for role in user_roles:
-#        role.set_permissions(assemble_complete_role_permissions(role))
-#
-#    all_permissions = merge_permissions(user_roles)
-#
-#    for k, v in all_permissions.items():
-#        if k == permission:
-#            for mode in v:
-#                resulting_access_mode.add(mode)
-#
-#    final_access_mode: str = "".join(resulting_access_mode)
-#    return final_access_mode
 
 
 def has_access_to_entire_model(
@@ -332,7 +282,7 @@ def get_all_rbac_model_parents(model: models.Model) -> Iterable[models.Model]:
     """
     Returns all recursive parents of the given RBAC-hierarchy-enabled model instance.
     """
-    local_model: models.Model = model
+    local_model: models.Model | None = model
     yield model
     while isinstance(local_model, RBACHierarchyModelMixin):
         local_model = local_model.get_rbac_parent()
