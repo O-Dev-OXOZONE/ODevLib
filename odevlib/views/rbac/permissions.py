@@ -179,7 +179,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
         if parent_model is not None and parent_id is not None:
             # Get instance-level permissions using parent model
             perms = permissions.merge_permissions(
-                permissions.get_complete_instance_user_roles(
+                permissions.get_complete_instance_rbac_roles(
                     user,
                     parent_model_type,
                     parent_id_int,
@@ -188,7 +188,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
         else:
             # Get instance-level permissions using model
             perms = permissions.merge_permissions(
-                permissions.get_complete_instance_user_roles(
+                permissions.get_complete_instance_rbac_roles(
                     user,
                     model_type,
                     instance_id_int,
@@ -196,7 +196,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             )
     else:
         # Get global permissions
-        perms = permissions.merge_permissions(permissions.get_complete_user_roles(user))
+        perms = permissions.merge_permissions(permissions.get_complete_rbac_roles(user))
 
     value = permissions.get_access_mode_for_permission(
         perms,
@@ -272,7 +272,7 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
 
     if model_name is not None and instance_id is not None:
         # Return instance-level roles and permissions
-        roles = list(permissions.get_complete_instance_user_roles(user, model_type, instance_id_int))
+        roles = list(permissions.get_complete_instance_rbac_roles(user, model_type, instance_id_int))
         perms = permissions.merge_permissions(roles)
         return Response(
             MyRolesAndPermissionsSerializer(
@@ -284,7 +284,7 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
         )
     else:
         # Return global roles and permissions
-        roles = list(permissions.get_user_roles(user))
+        roles = list(permissions.get_direct_rbac_roles(user))
         perms = permissions.merge_permissions(roles)
         return Response(
             MyRolesAndPermissionsSerializer(

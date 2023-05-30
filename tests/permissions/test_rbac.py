@@ -4,10 +4,10 @@ from typing import Tuple
 from django.contrib.auth.models import User, AbstractUser
 from odevlib.business_logic.rbac.permissions import (
     get_complete_roles_permissions,
-    get_complete_user_roles,
-    get_instance_user_roles,
+    get_complete_rbac_roles,
+    get_instance_rbac_roles,
     get_roles_permissions,
-    get_user_roles,
+    get_direct_rbac_roles,
 )
 
 from odevlib.models.rbac.role import RBACRole
@@ -89,7 +89,7 @@ def test_role_direct_assignment(superuser: AbstractUser, user: AbstractUser, rba
     assignment.save(user=superuser)
 
     # Check that user has the permission
-    roles = get_user_roles(user)
+    roles = get_direct_rbac_roles(user)
     permissions = get_roles_permissions(roles)
 
     assert "test_permission" in permissions
@@ -113,7 +113,7 @@ def test_role_inherited_assignment(
     assignment.save(user=superuser)
 
     # Check that user has the permission
-    roles = get_complete_user_roles(user)
+    roles = get_complete_rbac_roles(user)
     permissions = get_roles_permissions(roles)
 
     assert "test_permission" in permissions
@@ -133,7 +133,7 @@ def test_direct_instance_role_assignment(superuser: AbstractUser, user: Abstract
     assignment.save(user=superuser)
 
     # Check that user has the permission
-    roles = get_instance_user_roles(user, model=RBACRole, instance_id=rbac_role.pk)
+    roles = get_instance_rbac_roles(user, model=RBACRole, instance_id=rbac_role.pk)
     permissions = get_roles_permissions(roles)
 
     assert "test_permission" in permissions
@@ -155,7 +155,7 @@ def test_direct_instance_role_assignment_does_not_leak_into_other_instances(
     assignment.save(user=superuser)
 
     # Check that user has the permission
-    roles = get_instance_user_roles(user, model=RBACRole, instance_id=rbac_role.pk + 1)
+    roles = get_instance_rbac_roles(user, model=RBACRole, instance_id=rbac_role.pk + 1)
     permissions = get_roles_permissions(roles)
 
     assert "test_permission" not in permissions
@@ -176,7 +176,7 @@ def test_direct_instance_role_assignment_does_not_leak_into_global_assignments(
     assignment.save(user=superuser)
 
     # Check that user has the permission
-    roles = get_complete_user_roles(user)
+    roles = get_complete_rbac_roles(user)
     permissions = get_roles_permissions(roles)
 
     assert "test_permission" not in permissions
