@@ -21,6 +21,8 @@ Welcome to ODevLib's documentation!
    recommended_structure
    why_django_is_hard_to_typecheck
    managing_env_variables
+   code_style
+   working_with_external_apis
 
 
 
