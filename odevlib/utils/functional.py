@@ -39,7 +39,9 @@ def first(iterable: Iterable[T]) -> Optional[T]:
     return next(iterable.__iter__(), None)
 
 
-def lazy_filter(check: Callable[[T], bool], iterable: Iterable[Callable[[], T]]) -> Iterable[T]:
+def lazy_filter(
+    check: Callable[[T], bool], iterable: Iterable[Callable[[], T]]
+) -> Iterable[T]:
     for x in iterable:
         if check(val := x()):
             yield val
@@ -64,7 +66,9 @@ def filter_non_null(iterable: Iterable[Optional[T]]) -> Iterable[T]:
             yield it
 
 
-def group_by(it: Iterable[T], field_extractor: Callable[[T], V]) -> Iterable[Tuple[V, List[T]]]:
+def group_by(
+    it: Iterable[T], field_extractor: Callable[[T], V]
+) -> Iterable[Tuple[V, List[T]]]:
     """
     Groups elements of an iterable by a given field.
     @param it: iterable to process
@@ -76,3 +80,18 @@ def group_by(it: Iterable[T], field_extractor: Callable[[T], V]) -> Iterable[Tup
         key = field_extractor(item)
         result[key].append(item)
     return list(result.items())
+
+
+def until(value: T, it: Iterable[T]) -> Iterable[T]:
+    """
+    Returns all values of an iterable until the specified value is reached.
+    May be used to only get new values when overlapping getters are used.
+
+    @param value: value to stop at
+    @param it: iterable to process
+    @return: iterable of values until the specified value is reached. The specified value is not included.
+    """
+    for i in it:
+        if i == value:
+            return
+        yield i
