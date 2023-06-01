@@ -95,3 +95,20 @@ def until(value: T, it: Iterable[T]) -> Iterable[T]:
         if i == value:
             return
         yield i
+
+
+def until_f(value: T, it: Iterable[V], f: Callable[[T, V], bool]) -> Iterable[V]:
+    """
+    Returns all values of an iterable until the specified value is reached.
+    May be used to only get new values when overlapping getters are used.
+    Uses f instead of "==" to compare values. As soon as True is obtained, aborts the iterable.
+
+    @param value: value to stop at
+    @param it: iterable to process
+    @param f: callable that is used to compare values. First argument is "value", second is the current iterable value.
+    @return: iterable of values until the specified value is reached. The specified value is not included.
+    """
+    for i in it:
+        if f(i, value):
+            return
+        yield i
