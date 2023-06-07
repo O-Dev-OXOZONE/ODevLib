@@ -13,3 +13,21 @@ data you send to server differs from data you receive from server.
 
 Usually, though, you get the same fields in retrieve/create/update serializers, plus some extra fields in retrieve
 serializers, i.e. primary keys in `id` field, and some computed stuff.
+
+## How to name serializers
+
+The convention used by ODevLib is to name serializers as:
+- `<Model>Serializer` for retrieve serializer;
+- `<Model>CreateSerializer` for create serializer;
+- `<Model>UpdateSerializer` for update serializer.
+
+You can have a subset of these serializers, but you will always have retrieve serializer, as it is used as response for
+ANY endpoints (GET, PATCH, POST, all of them).
+
+## How to name endpoints
+
+The convention used by ODevLib is to name endpoints as:
+- `/api/<subsystem>/<model>/` for ViewSet;
+- `/api/<subsystem>/<model>/<pk>/<action>/` for actions.
+
+You can also have function-based views, which are not covered by any convention, as they are specific for each task.

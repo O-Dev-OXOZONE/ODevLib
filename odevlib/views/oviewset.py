@@ -144,20 +144,20 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
         # Get and return object, raising error if necessary.
         pk = self.kwargs[self.lookup_url_kwarg]
 
-        if not isinstance(pk, int):
-            try:
-                # If passed pk is not of int type, try to convert it to it.
-                pk = int(pk)
-            except ValueError:
-                # If conversion failed, return error.
-                return Error(
-                    error_code=codes.internal_server_error,
-                    eng_description=f'Expected pk to be int in get_object(), got "{pk}"',
-                    ui_description=f'В get_object() ожидался int как тип pk, был получен "{pk}"',
-                )
+        # if not isinstance(pk, int):
+        #     try:
+        #         # If passed pk is not of int type, try to convert it to it.
+        #         pk = int(pk)
+        #     except ValueError:
+        #         # If conversion failed, return error.
+        #         return Error(
+        #             error_code=codes.internal_server_error,
+        #             eng_description=f'Expected pk to be int in get_object(), got "{pk}"',
+        #             ui_description=f'В get_object() ожидался int как тип pk, был получен "{pk}"',
+        #         )
 
         try:
-            return queryset.get(pk=pk)
+            return queryset.get(**{self.lookup_url_kwarg: pk})
         except queryset.model.DoesNotExist:
             # Disable _meta access warning.
             # noinspection PyProtectedMember
