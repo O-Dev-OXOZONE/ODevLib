@@ -3,8 +3,13 @@ from django.db import models
 from drf_spectacular.drainage import add_trace_message, get_override, has_override, warn
 from drf_spectacular.extensions import OpenApiFilterExtension
 from drf_spectacular.plumbing import (
-    build_array_type, build_basic_type, build_parameter_type, follow_field_source, get_type_hints,
-    get_view_model, is_basic_type,
+    build_array_type,
+    build_basic_type,
+    build_parameter_type,
+    follow_field_source,
+    get_type_hints,
+    get_view_model,
+    is_basic_type,
 )
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter
@@ -45,15 +50,22 @@ class OFilterExtension(OpenApiFilterExtension):
             )
 
     """
-    target_class = 'odevlib.filters.backends.OFilterBackend'
+
+    target_class = "odevlib.filters.backends.OFilterBackend"
 
     def get_schema_operation_parameters(self, auto_schema, *args, **kwargs):
         model = get_view_model(auto_schema.view)
         if not model:
             return []
 
-        filterset_class = self.target.get_filterset_class(auto_schema.view, model.objects.none())
+        filterset_class = self.target.get_filterset_class(
+            auto_schema.view, model.objects.none()
+        )
         if not filterset_class:
+            return []
+
+        from odevlib.filters.backends.ofilter_backend import OFilterBackend
+        if not isinstance(filterset_class, OFilterBackend):
             return []
 
         result = []
@@ -64,7 +76,9 @@ class OFilterExtension(OpenApiFilterExtension):
                 )
         return result
 
-    def resolve_filter_field(self, auto_schema, model, filterset_class, field_name, filter_field):
+    def resolve_filter_field(
+        self, auto_schema, model, filterset_class, field_name, filter_field
+    ):
         from django_filters import filters  # type: ignore
 
         unambiguous_mapping = {
@@ -87,10 +101,10 @@ class OFilterExtension(OpenApiFilterExtension):
         filter_choices = self._get_explicit_filter_choices(filter_field)
         schema_from_override = False
 
-        if has_override(filter_field, 'field') or has_override(filter_method, 'field'):
+        if has_override(filter_field, "field") or has_override(filter_method, "field"):
             schema_from_override = True
-            annotation = (
-                    get_override(filter_field, 'field') or get_override(filter_method, 'field')
+            annotation = get_override(filter_field, "field") or get_override(
+                filter_method, "field"
             )
             if is_basic_type(annotation):
                 schema = build_basic_type(annotation)
@@ -107,7 +121,9 @@ class OFilterExtension(OpenApiFilterExtension):
                 if cls in unambiguous_mapping:
                     schema = build_basic_type(unambiguous_mapping[cls])
                     break
-        elif isinstance(filter_field, (filters.NumberFilter, filters.NumericRangeFilter)):
+        elif isinstance(
+            filter_field, (filters.NumberFilter, filters.NumericRangeFilter)
+        ):
             # NumberField is underspecified by itself. try to find the
             # type that makes the most sense or default to generic NUMBER
             model_field = self._get_model_field(filter_field, model)
@@ -119,16 +135,20 @@ class OFilterExtension(OpenApiFilterExtension):
                 schema = build_basic_type(OpenApiTypes.NUMBER)  # TODO may be improved
             else:
                 schema = build_basic_type(OpenApiTypes.NUMBER)
-        elif isinstance(filter_field, (filters.ChoiceFilter, filters.MultipleChoiceFilter)):
+        elif isinstance(
+            filter_field, (filters.ChoiceFilter, filters.MultipleChoiceFilter)
+        ):
             try:
-                schema = self._get_schema_from_model_field(auto_schema, filter_field, model)
+                schema = self._get_schema_from_model_field(
+                    auto_schema, filter_field, model
+                )
             except Exception:
                 if filter_choices and is_basic_type(type(filter_choices[0])):
                     # fallback to type guessing from first choice element
                     schema = build_basic_type(type(filter_choices[0]))
                 else:
                     warn(
-                        f'Unable to guess choice types from values, filter method\'s type hint '
+                        f"Unable to guess choice types from values, filter method's type hint "
                         f'or find "{field_name}" in model. Defaulting to string.'
                     )
                     schema = build_basic_type(OpenApiTypes.STR)
@@ -136,10 +156,12 @@ class OFilterExtension(OpenApiFilterExtension):
             # the last resort is to look up the type via the model or queryset field
             # and emit a warning if we were unsuccessful.
             try:
-                schema = self._get_schema_from_model_field(auto_schema, filter_field, model)
+                schema = self._get_schema_from_model_field(
+                    auto_schema, filter_field, model
+                )
             except Exception as exc:  # pragma: no cover
                 warn(
-                    f'Exception raised while trying resolve model field for django-filter '
+                    f"Exception raised while trying resolve model field for django-filter "
                     f'field "{field_name}". Defaulting to string (Exception: {exc})'
                 )
                 schema = build_basic_type(OpenApiTypes.STR)
@@ -148,18 +170,18 @@ class OFilterExtension(OpenApiFilterExtension):
 
         # primary keys are usually non-editable (readOnly=True) and map_model_field correctly
         # signals that attribute. however this does not apply in this context.
-        schema.pop('readOnly', None)
+        schema.pop("readOnly", None)
         # enrich schema with additional info from filter_field
-        enum = schema.pop('enum', None)
+        enum = schema.pop("enum", None)
         # explicit filter choices may disable enum retrieved from model
         if not schema_from_override and filter_choices is not None:
             enum = filter_choices
         if enum:
-            schema['enum'] = sorted(enum, key=str)
+            schema["enum"] = sorted(enum, key=str)
 
-        description = schema.pop('description', None)
-        if filter_field.extra.get('help_text', None):
-            description = filter_field.extra['help_text']
+        description = schema.pop("description", None)
+        if filter_field.extra.get("help_text", None):
+            description = filter_field.extra["help_text"]
         elif filter_field.label is not None:
             description = filter_field.label
 
@@ -168,19 +190,22 @@ class OFilterExtension(OpenApiFilterExtension):
             schema = build_array_type(schema)
             field_names = [field_name]
             explode = False
-            style = 'form'
+            style = "form"
         elif isinstance(filter_field, filters.MultipleChoiceFilter):
             schema = build_array_type(schema)
             field_names = [field_name]
             explode = True
-            style = 'form'
-        elif isinstance(filter_field, (filters.RangeFilter, filters.NumericRangeFilter)):
+            style = "form"
+        elif isinstance(
+            filter_field, (filters.RangeFilter, filters.NumericRangeFilter)
+        ):
             try:
                 suffixes = filter_field.field_class.widget.suffixes
             except AttributeError:
-                suffixes = ['min', 'max']
+                suffixes = ["min", "max"]
             field_names = [
-                f'{field_name}_{suffix}' if suffix else field_name for suffix in suffixes
+                f"{field_name}_{suffix}" if suffix else field_name
+                for suffix in suffixes
             ]
             explode = None
             style = None
@@ -192,12 +217,12 @@ class OFilterExtension(OpenApiFilterExtension):
         return [
             build_parameter_type(
                 name=field_name,
-                required=filter_field.extra['required'],
+                required=filter_field.extra["required"],
                 location=OpenApiParameter.QUERY,
                 description=description,
                 schema=schema,
                 explode=explode,
-                style=style
+                style=style,
             )
             for field_name in field_names
         ]
@@ -212,23 +237,23 @@ class OFilterExtension(OpenApiFilterExtension):
 
     def _get_filter_method_hint(self, filter_method):
         try:
-            return get_type_hints(filter_method)['value']
+            return get_type_hints(filter_method)["value"]
         except:  # noqa: E722
             return _NoHint
 
     def _get_explicit_filter_choices(self, filter_field):
-        if 'choices' not in filter_field.extra:
+        if "choices" not in filter_field.extra:
             return None
-        elif callable(filter_field.extra['choices']):
+        elif callable(filter_field.extra["choices"]):
             # choices function may utilize the DB, so refrain from actually calling it.
             return []
         else:
-            return [c for c, _ in filter_field.extra['choices']]
+            return [c for c, _ in filter_field.extra["choices"]]
 
     def _get_model_field(self, filter_field, model):
         if not filter_field.field_name:
             return None
-        path = filter_field.field_name.split('__')
+        path = filter_field.field_name.split("__")
         return follow_field_source(model, path, emit_warnings=False)
 
     def _get_schema_from_model_field(self, auto_schema, filter_field, model):
@@ -253,7 +278,7 @@ class OFilterExtension(OpenApiFilterExtension):
 
     @classmethod
     def _is_gis(cls, field):
-        if not getattr(cls, '_has_gis', True):
+        if not getattr(cls, "_has_gis", True):
             return False
         try:
             from django.contrib.gis.db.models import GeometryField

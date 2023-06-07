@@ -109,6 +109,6 @@ def until_f(value: T, it: Iterable[V], f: Callable[[T, V], bool]) -> Iterable[V]
     @return: iterable of values until the specified value is reached. The specified value is not included.
     """
     for i in it:
-        if f(i, value):
+        if f(value, i):
             return
         yield i
