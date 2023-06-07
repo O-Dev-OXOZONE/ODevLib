@@ -23,6 +23,7 @@ Welcome to ODevLib's documentation!
    managing_env_variables
    code_style
    working_with_external_apis
+   cookiecutter_template_guide
 
 
 
