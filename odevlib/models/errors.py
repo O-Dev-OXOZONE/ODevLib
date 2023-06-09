@@ -35,7 +35,7 @@ class Error(models.Model):
         default=True,
     )
 
-    def serialize_response(self):
+    def serialize_response(self) -> Response:
         return Response(
             GracefulErrorSerializer(instance=self).data,
             status=status_code_mapping.get(self.error_code, 418),
