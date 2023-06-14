@@ -9,7 +9,7 @@ from odevlib.errors.codes import status_code_mapping
 class Error(models.Model):
     # Fields to be sent to the client
     error_code = models.IntegerField(
-        verbose_name="Код ошибки"
+        verbose_name="Код ошибки",
     )
     eng_description = models.TextField(
         verbose_name="Техническое описание ошибки для разработчиков"
@@ -17,23 +17,26 @@ class Error(models.Model):
     ui_description = models.TextField(
         verbose_name="Описание для UI",
         help_text="Можно показывать пользователю в диалоговом окне для ошибок",
-        default='',
+        default="",
     )
 
     # Fields to keep on server
     stacktrace = models.TextField(
         verbose_name="Stacktrace",
-        default='',
+        default="",
     )
     created_date = models.DateTimeField(
         verbose_name="Время ошибки",
         default=timezone.now,
-        editable=False
+        editable=False,
     )
     handled_gracefully = models.BooleanField(
         verbose_name="Была ли ошибка обработана кодом (или поймана exception handler middleware'ом)",
         default=True,
     )
+
+    def __str__(self) -> str:
+        return f"{self.error_code}: {self.ui_description}"
 
     def serialize_response(self) -> Response:
         return Response(
