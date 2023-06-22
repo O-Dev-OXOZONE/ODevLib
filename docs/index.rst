@@ -24,7 +24,7 @@ Welcome to ODevLib's documentation!
    code_style
    working_with_external_apis
    cookiecutter_template_guide
-
+   contributing_to_opensource_odev_infrastructure
 
 
 .. toctree::

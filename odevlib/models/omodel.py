@@ -37,12 +37,23 @@ class OModel(models.Model):
 
     history = HistoricalRecords(inherit=True)
 
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None, *args, **kwargs) -> None:
+    def save(
+        self,
+        force_insert=False,
+        force_update=False,
+        using=None,
+        update_fields=None,
+        *args,
+        **kwargs,
+    ) -> None:
         user: User = kwargs.get("user", None)
         if user is None and ((_user := get_user()) is not None):
             user = _user
         if user is None:
-            raise ValueError("user was not passed to the OModel")
+            raise ValueError(
+                "User was not passed to the {self.__class__.__name__} save method and "
+                f"could not be retrieved from the middleware"
+            )
 
         self.updated_by = user  # type: ignore
         if not self.pk:
