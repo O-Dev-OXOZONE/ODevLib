@@ -195,13 +195,16 @@ class RBACSerializerMixin(_Base):
 
         mode: str = action_to_mode_mapping[self.context["action"]]
 
-        assert self.instance is not None
-        if self.context["action"] == "list":
-            instance = self.instance[0]
-        elif self.context["action"] == "create":
+        if self.instance is None:
+            # Prefetching is using this serializer, so we don't have a particular instance.
             instance = None
         else:
-            instance = self.instance
+            if self.context["action"] == "list":
+                instance = self.instance[0]
+            elif self.context["action"] == "create":
+                instance = None
+            else:
+                instance = self.instance
 
         # Global permissions are used in cases when we do not have access to the instance.
         global_permissions = merge_permissions(get_direct_rbac_roles(user))
