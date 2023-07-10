@@ -129,6 +129,8 @@ class RBACSerializerMixin(_Base):
         model: Type[models.Model] = getattr(self.Meta, "model")
         depth = getattr(self.Meta, "depth", 0)
 
+        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"
+
         # TODO: check if this is actually non-null always
         assert isinstance(depth, int), "'depth' must be an integer."
         # TODO: if so, we can also remove the if
@@ -208,6 +210,8 @@ class RBACSerializerMixin(_Base):
             else:
                 instance = self.instance
 
+        print("Instance:", instance, "of type", type(instance))
+
         # Global permissions are used in cases when we do not have access to the instance.
         global_permissions = merge_permissions(get_direct_rbac_roles(user))
         globally_available_fields = OrderedDict(
@@ -227,6 +231,7 @@ class RBACSerializerMixin(_Base):
         if instance is None:
             if not has_inheritance:
                 # If we don't even have a parent, return permissions based on global roles only.
+                print("returning globally available fields")
                 return globally_available_fields
             else:
                 # We have a parent, use it.
@@ -245,9 +250,12 @@ class RBACSerializerMixin(_Base):
                 instance_level_parent_permissions = merge_permissions(
                     get_instance_rbac_roles(user, parent_model, parent_pk)
                 )
+
+                print("Instance level parent permissions:", instance_level_parent_permissions)
+
                 allowed_fields = get_allowed_model_fields(
                     permissions=instance_level_parent_permissions,
-                    model=f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}",
+                    model=model_name,
                     mode=mode,
                 )
                 available_fields = OrderedDict(
@@ -260,13 +268,20 @@ class RBACSerializerMixin(_Base):
                 return available_fields
         else:
             roles = get_direct_rbac_roles(user)
+
+        print("Roles:", roles)
         permissions = merge_permissions(roles)
+        print("Permissions:", permissions)
+
+        if model_name in permissions.keys():
+            return fields
 
         allowed_fields = get_allowed_model_fields(
             permissions=permissions,
-            model=f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}",  # type: ignore
+            model=model_name,  # type: ignore
             mode=mode,
         )
+        print("Allowed fields:", allowed_fields)
         available_fields = OrderedDict(
             [
                 (field_name, field)
@@ -274,6 +289,7 @@ class RBACSerializerMixin(_Base):
                 if field_name in always_available_fields or field_name in allowed_fields
             ]
         )
+        print("Allowed fields:", allowed_fields)
         return available_fields
 
 
