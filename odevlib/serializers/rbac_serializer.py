@@ -57,7 +57,9 @@ class RBACSerializerMixin(_Base):
             # This logic assumes that all instances are of the same type, that we have filtered our
             # queryset to only return instances available to user, and that all instances of
             # queryset has the same set of available fields.
-            assert self.instance is not None
+            # assert self.instance is not None
+            if self.instance is None:
+                return None
             first = self.instance[0]
             if first is None:
                 # In case of empty queryset, we don't have pk to return.
