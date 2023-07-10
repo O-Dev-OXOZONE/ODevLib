@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'odevlib',
+    'test_app',
 ]
 
 MIDDLEWARE = [

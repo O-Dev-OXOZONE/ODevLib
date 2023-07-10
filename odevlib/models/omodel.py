@@ -56,7 +56,7 @@ class OModel(models.Model):
             )
 
         self.updated_by = user  # type: ignore
-        if not self.pk:
+        if self._state.adding is True:
             self.created_by = user  # type: ignore
 
         super().save(force_insert, force_update, using, update_fields)

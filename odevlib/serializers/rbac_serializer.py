@@ -180,7 +180,7 @@ class RBACSerializerMixin(_Base):
             # This should never happen, as even unauthorized users have AnonymousUser instance.
             raise APIException(f"Couldn't obtain user in {self.__class__.__name__}")
 
-        # We require context, as it contains action and we can't get fields without knowning
+        # We require context, as it contains action and we can't get fields without knowing
         # what are we getting fields for.
         # assert self.context is not None, f"Context was not passed to {self.__class__.__name__}"
         # assert "action" in self.context, f"Action is not specified in context of {self.__class__.__name__}"
