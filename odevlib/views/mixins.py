@@ -153,14 +153,18 @@ class ODestroyMixin:
 
         # Check RBAC permissions
         if self.use_rbac:  # type: ignore
-            all_permissions = merge_permissions(
-                get_complete_instance_rbac_roles(
-                    request.user,
-                    instance,
-                    instance.pk,
-                ),
+            permissions = get_complete_instance_rbac_roles(
+                request.user,
+                instance._meta.model,
+                instance.pk,
             )
-            has_permission = has_access_to_entire_model(all_permissions, instance, "d") or request.user.is_superuser
+            if isinstance(permissions, Error):
+                return permissions.serialize_response()
+
+            all_permissions = merge_permissions(permissions)
+            has_permission = (
+                has_access_to_entire_model(all_permissions, instance._meta.model, "d") or request.user.is_superuser
+            )
             if not has_permission:
                 return Error(
                     error_code=codes.permission_denied,
@@ -196,7 +200,11 @@ class ORelationsMixin:
 
         # Check RBAC permissions
         if self.use_rbac:  # type: ignore
-            all_permissions = merge_permissions(get_complete_instance_rbac_roles(request.user, instance, instance.pk))
+            permissions = get_complete_instance_rbac_roles(request.user, instance, instance.pk)
+            if isinstance(permissions, Error):
+                return permissions.serialize_response()
+
+            all_permissions = merge_permissions(permissions)
             has_permission = has_access_to_entire_model(all_permissions, instance, "r") or request.user.is_superuser
             if not has_permission:
                 return Error(

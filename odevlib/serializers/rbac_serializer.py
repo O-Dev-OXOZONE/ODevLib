@@ -12,13 +12,11 @@ from django.db import models
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
 from rest_framework.fields import Field
-from rest_framework.schemas.coreapi import insert_into
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
 from odevlib.business_logic.rbac.permissions import (
     get_allowed_model_fields,
-    get_complete_instance_rbac_roles,
     get_instance_rbac_roles,
     get_direct_rbac_roles,
     has_access_to_model_field,

@@ -1,9 +1,11 @@
 import itertools
 from collections import defaultdict
 from typing import Mapping
+from odevlib.errors import codes
 
 
 from odevlib.models import RBACRole
+from odevlib.models.errors import Error
 from odevlib.utils.functional import flatten
 from typing import Iterable, Mapping, Optional, Type
 
@@ -170,7 +172,7 @@ def get_complete_instance_rbac_roles(
     user: AbstractUser,
     model: Type[models.Model],
     instance_id: int,
-) -> Iterable[RBACRole]:
+) -> Iterable[RBACRole] | Error:
     """
     Returns all roles assigned to a user for a particular instance of a model, recursively following children models.
     This function is the root for getting roles, as its implementation may change to include
@@ -179,11 +181,16 @@ def get_complete_instance_rbac_roles(
     Keep in mind that this function also includes non-instance-level roles, so this is to-go function if you want to
     obtain roles for serializer/view permission checking.
     """
-    all_models = get_all_rbac_model_parents(model.objects.get(pk=instance_id))
-    roles = flatten([
-        get_instance_rbac_roles(user, instance.__class__, instance.pk) 
-        for instance in all_models
-    ])
+    inst = model.objects.filter(pk=instance_id).first()
+    if inst is None:
+        return Error(
+            error_code=codes.does_not_exist,
+            eng_description=f"Instance of {model._meta.app_label}.{model._meta.model_name} with id={instance_id} does not exist",
+            ui_description=f"Instance of {model._meta.app_label}.{model._meta.model_name} with id={instance_id} does not exist",
+        )
+
+    all_models = get_all_rbac_model_parents(inst)
+    roles = flatten([get_instance_rbac_roles(user, instance.__class__, instance.pk) for instance in all_models])
 
     def recurse(role: RBACRole) -> Iterable[RBACRole]:
         yield role
