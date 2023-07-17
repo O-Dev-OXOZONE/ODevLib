@@ -190,7 +190,10 @@ def get_complete_instance_rbac_roles(
         )
 
     all_models = get_all_rbac_model_parents(inst)
-    roles = flatten([get_instance_rbac_roles(user, instance.__class__, instance.pk) for instance in all_models])
+    roles = flatten(
+        [get_complete_rbac_roles(user)] +
+        [get_instance_rbac_roles(user, instance.__class__, instance.pk) for instance in all_models]
+    )
 
     def recurse(role: RBACRole) -> Iterable[RBACRole]:
         yield role

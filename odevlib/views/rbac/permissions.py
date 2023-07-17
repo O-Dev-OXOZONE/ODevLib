@@ -214,7 +214,11 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             perms,
             permission_name.split("__")[0] + "__" + permission_name.split("__")[1],
         )
-        value = "".join(set(*value, *model_value))
+        if model_value is not None:
+            if value is None:
+                value = model_value
+            else:
+                value = "".join(set(*value, *model_value))
 
     return Response(str(value))
 
