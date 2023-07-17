@@ -7,7 +7,7 @@ from odevlib.admin.omodel import OModelAdmin
 
 try:
     admin.site.register(RBACRole, OModelAdmin)
-    admin.site.register(RoleAssignment, admin.ModelAdmin)
+    admin.site.register(RoleAssignment, OModelAdmin)
     admin.site.register(RoleHierarchyEntry, OModelAdmin)
     admin.site.register(InstanceRoleAssignment, OModelAdmin)
 except admin.sites.AlreadyRegistered:

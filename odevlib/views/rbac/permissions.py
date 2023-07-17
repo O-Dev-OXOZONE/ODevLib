@@ -206,6 +206,16 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
         perms,
         permission_name,
     )
+
+    # Since we may have a permission for an entire model, but don't have a permission for a specific field,
+    # we also try to get entire morel permissions
+    if len(permission_name.split("__")) == 3:
+        model_value = permissions.get_access_mode_for_permission(
+            perms,
+            permission_name.split("__")[0] + "__" + permission_name.split("__")[1],
+        )
+        value = "".join(set(*value, *model_value))
+
     return Response(str(value))
 
 
