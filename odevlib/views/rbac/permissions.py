@@ -218,7 +218,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             if value is None:
                 value = model_value
             else:
-                value = "".join(set(*value, *model_value))
+                value = "".join(set([*value, *model_value]))
 
     return Response(str(value))
 
