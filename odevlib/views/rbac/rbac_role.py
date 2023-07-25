@@ -13,7 +13,7 @@ from odevlib.serializers.rbac.rbac_role import RBACRoleCreateSerializer, RBACRol
 from odevlib.views import OModelViewSet
 
 
-class RBACRoleViewSet(OModelViewSet):
+class RBACRoleViewSet(OModelViewSet[RBACRole]):
     queryset = RBACRole.objects.all()
     serializer_class = RBACRoleSerializer
     create_serializer_class = RBACRoleCreateSerializer

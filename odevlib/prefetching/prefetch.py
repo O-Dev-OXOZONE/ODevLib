@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Optional, Type, Union
+from typing import Any, Optional, Type, TypeVar, Union
 
 from django.core.exceptions import FieldError
 from django.db import models
@@ -17,16 +17,19 @@ from rest_framework.serializers import BaseSerializer, ListSerializer, ModelSeri
 SERIALIZER_SOURCE_RELATION_SEPARATOR = "."
 
 
+T = TypeVar("T", bound=models.Model)
+
+
 # TODO: fix type ignores here
 def prefetch(
-    queryset: QuerySet,
+    queryset: QuerySet[T],
     serializer: Type[ModelSerializer],
     *,
     excluded_fields=None,
     extra_select_fields=None,
     extra_prefetch_fields=None,
     context: Optional[dict[str, Any]] = None,
-) -> QuerySet:
+) -> QuerySet[T]:
     if not isinstance(excluded_fields, (set, list)) and excluded_fields is not None:
         raise TypeError(f"excluded_fields must be a list or a set if supplied. Received {type(excluded_fields)}")
 
@@ -163,7 +166,7 @@ def _prefetch(
 
         elif SERIALIZER_SOURCE_RELATION_SEPARATOR in field_instance.source:
             # The serializer declares a field from a related object.
-            relation_name = field_instance.source.split(SERIALIZER_SOURCE_RELATION_SEPARATOR)[0]  # type: ignore
+            relation_name = field_instance.source.split(SERIALIZER_SOURCE_RELATION_SEPARATOR)[0]
             if hasattr(serializer, "Meta") and is_model_relation(serializer.Meta.model, relation_name):
                 # logger.debug(f'{" " * indentation} Found *:1 relation: {relation_name}')
                 select_related.add(prepend + relation_name)

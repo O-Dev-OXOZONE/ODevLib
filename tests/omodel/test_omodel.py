@@ -3,8 +3,7 @@ from django.contrib.auth import get_user_model
 from test_app.models import TestOneToOneOModel
 
 from test_app.models import TestOModel
-
-User = get_user_model()
+from django.contrib.auth.models import User
 
 
 @pytest.fixture

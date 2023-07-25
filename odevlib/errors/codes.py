@@ -12,7 +12,7 @@ internal_data_inconsistency: int = 4
 
 # When requested object does not exist
 does_not_exist: int = 5
-not_found: int = 6
+not_found: int = 5
 
 # When data supplied from client is invalid
 invalid_request_data: int = 6

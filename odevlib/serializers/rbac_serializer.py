@@ -127,11 +127,9 @@ class RBACSerializerMixin(_Base):
         model: Type[models.Model] = getattr(self.Meta, "model")
         depth = getattr(self.Meta, "depth", 0)
 
-        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"
+        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"  # type: ignore
 
-        # TODO: check if this is actually non-null always
         assert isinstance(depth, int), "'depth' must be an integer."
-        # TODO: if so, we can also remove the if
         if depth is not None:
             assert depth >= 0, "'depth' may not be negative."
             assert depth <= 10, "'depth' may not be greater than 10."

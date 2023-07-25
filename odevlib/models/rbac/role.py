@@ -36,7 +36,7 @@ class RBACRole(OModel):
         """
         Type-safe retrieval of permissions mapping.
         """
-        return self.permissions  # type: ignore
+        return self.permissions
 
     def set_permissions(self, new_perms: Mapping[str, str]) -> None:
         """

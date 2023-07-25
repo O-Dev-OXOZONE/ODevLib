@@ -1,10 +1,25 @@
 import inspect
-from typing import Callable, Generic, Optional, Sequence, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Protocol,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from django.db.models import Model, QuerySet
+from django_stubs_ext import QuerySetAny
 from drf_spectacular.utils import OpenApiParameter
 from rest_framework import serializers
-from rest_framework.permissions import BasePermission, OperandHolder, SingleOperandHolder
+from rest_framework.permissions import (
+    BasePermission,
+    OperandHolder,
+    SingleOperandHolder,
+)
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
 from odevlib.errors import codes
@@ -12,7 +27,42 @@ from odevlib.models.errors import Error
 
 from odevlib.views import OModelMixins
 
-T = TypeVar('T', bound=Model)
+T = TypeVar("T", bound=Model)
+
+
+class OViewSetProtocol(Protocol, Generic[T]):
+    """
+    This protocol is used to ensure that OViewSet has all necessary fields.
+    """
+
+    # SERIALIZERS SECTION #
+    @property
+    def serializer_class(self) -> Optional[Type[serializers.ModelSerializer[T]]]: ...
+
+    create_serializer_class: Optional[Type[serializers.ModelSerializer[T]]]
+    update_serializer_class: Optional[Type[serializers.ModelSerializer[T]]]
+
+    # URL SECTION #
+    # Name of the main lookup kwarg used in the URL. Used for retrieve/put/patch methods.
+    lookup_url_kwarg: str
+
+    additional_query_parameters: dict[str, list[OpenApiParameter]]
+
+    # You can override these fields to add prefetch/select related fields to the query to get rid of N+1 problem.
+    prefetch_related_fields: list[str]
+    select_related_fields: list[str]
+
+    # Permission setup
+    use_rbac: bool
+
+    def filter_by_kwargs(self, queryset: QuerySet[T], kwargs: dict) -> QuerySet[T]:
+        ...
+
+    def get_queryset(self) -> QuerySet[T]:
+        ...
+
+    def get_object(self) -> Union[T, Error]:
+        ...
 
 
 class OViewSet(ViewSetMixin, APIView, Generic[T]):
@@ -39,24 +89,24 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
     """
 
     # SERIALIZERS SECTION #
-    serializer_class: Optional[Type[serializers.Serializer]] = None
-    create_serializer_class: Optional[Type[serializers.Serializer]] = None
-    update_serializer_class: Optional[Type[serializers.Serializer]] = None
+    serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
+    create_serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
+    update_serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
 
     # DATABASE INTERACTION SECTION #
     queryset: Optional[QuerySet[T]] = None
 
     # URL SECTION #
     # Name of the main lookup kwarg used in the URL. Used for retrieve/put/patch methods.
-    lookup_url_kwarg = 'pk'
+    lookup_url_kwarg = "pk"
 
     additional_query_parameters: dict[str, list[OpenApiParameter]] = {
-        'list': [],
-        'retrieve': [],
-        'update': [],
-        'partial_update': [],
-        'create': [],
-        'destroy': [],
+        "list": [],
+        "retrieve": [],
+        "update": [],
+        "partial_update": [],
+        "create": [],
+        "destroy": [],
     }
 
     # You can override these fields to add prefetch/select related fields to the query to get rid of N+1 problem.
@@ -65,24 +115,33 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
 
     # Permission setup
     use_rbac: bool = False
-    permission_classes: Sequence[Union[  # type: ignore
-        Callable[[], BasePermission],
-        Type[BasePermission],
-        OperandHolder,
-        SingleOperandHolder
-    ]]
+    permission_classes: Sequence[  # type: ignore
+        Union[
+            Callable[[], BasePermission],
+            Type[BasePermission],
+            OperandHolder,
+            SingleOperandHolder,
+        ]
+    ]
 
     def __init__(self, *args, **kwargs):
         super().__init__()
         from odevlib.schema.oautoschema import OAutoSchema
 
-        for method in ['create', 'list', 'retrieve', 'update', 'partial_update', 'destroy']:
+        for method in [
+            "create",
+            "list",
+            "retrieve",
+            "update",
+            "partial_update",
+            "destroy",
+        ]:
             if hasattr(self, method):
                 m = getattr(self.__class__, method)
                 # Ignore actions that have custom schema set (i.e. with @extend_schema).
-                if hasattr(m, 'kwargs') and 'schema' in getattr(m, 'kwargs'):
+                if hasattr(m, "kwargs") and "schema" in getattr(m, "kwargs"):
                     continue
-                setattr(m, 'kwargs', {'schema': OAutoSchema})
+                setattr(m, "kwargs", {"schema": OAutoSchema})
 
     def filter_by_kwargs(self, queryset: QuerySet[T], kwargs: dict) -> QuerySet[T]:
         """
@@ -110,12 +169,12 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
             "or override the `get_queryset()` method."
         )
 
-        if not hasattr(self, 'kwargs'):
+        if not hasattr(self, "kwargs"):
             # Handle Swagger schema generation. When Swagger schema is generated, no request/kwargs are present.
             return self.queryset.none()
 
         queryset = self.filter_by_kwargs(self.queryset, self.kwargs)
-        if isinstance(queryset, QuerySet):  # type: ignore
+        if isinstance(queryset, QuerySetAny):
             # Ensure queryset is re-evaluated on each request.
             queryset = queryset.all()
 
@@ -135,10 +194,10 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
 
         # Ensure lookup field is present in URL query params (which is automatically parsed into kwargs).
         assert self.lookup_url_kwarg in self.kwargs, (
-                'Expected view %s to be called with a URL keyword argument '
-                'named "%s". Fix your URL conf, or set the `.lookup_field` '
-                'attribute on the view correctly.' %
-                (self.__class__.__name__, self.lookup_url_kwarg)
+            "Expected view %s to be called with a URL keyword argument "
+            'named "%s". Fix your URL conf, or set the `.lookup_field` '
+            "attribute on the view correctly."
+            % (self.__class__.__name__, self.lookup_url_kwarg)
         )
 
         # Get and return object, raising error if necessary.
@@ -163,12 +222,12 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
             # noinspection PyProtectedMember
             return Error(
                 error_code=codes.does_not_exist,
-                eng_description=f'{inspect.getmro(queryset.model)[0].__name__} instance with pk={pk}',
-                ui_description=f'{queryset.model._meta.verbose_name} с pk={pk} не существует',
+                eng_description=f"{inspect.getmro(queryset.model)[0].__name__} instance with pk={pk}",
+                ui_description=f"{queryset.model._meta.verbose_name} с pk={pk} не существует",
             )
 
 
-class OModelViewSet(OViewSet[T], OModelMixins, Generic[T]):
+class OModelViewSet(OModelMixins[T], OViewSet[T]):
     """
     Contains OViewSet and all model mixins for easy importing.
     """

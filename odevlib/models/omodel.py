@@ -51,8 +51,8 @@ class OModel(models.Model):
             user = _user
         if user is None:
             raise ValueError(
-                "User was not passed to the {self.__class__.__name__} save method and "
-                f"could not be retrieved from the middleware"
+                f"User was not passed to the {self.__class__.__name__} save method and "
+                "could not be retrieved from the middleware"
             )
 
         self.updated_by = user  # type: ignore

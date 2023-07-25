@@ -1,31 +1,43 @@
+from typing import TYPE_CHECKING, TypeAlias, TypeVar, Union
+import typing
+
+from django.db import models
 from django.db.models import ProtectedError
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.request import Request
 from rest_framework.response import Response
 
-from odevlib.errors import codes
-from odevlib.models.errors import Error
 from odevlib.business_logic.rbac.permissions import (
     get_complete_instance_rbac_roles,
     has_access_to_entire_model,
     merge_permissions,
 )
 from odevlib.business_logic.relations import get_relations
+from odevlib.errors import codes
+from odevlib.models.errors import Error
 from odevlib.prefetching import prefetch
 from odevlib.serializers.related import RelationSerializer
+from django.db.models import QuerySet
+from typing import Generic
+
+if TYPE_CHECKING:
+    from odevlib.views.oviewset import OViewSetProtocol
 
 
-# TODO: find how to gracefully handle mypy errors for mixins
-class OCreateMixin:
+M = TypeVar("M", bound=models.Model)
+
+
+class OCreateMixin(Generic[M]):
     """
     Provides create method for OViewSet.
     """
 
-    def create(self, request, *args, **kwargs):
+    def create(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
-        additional_kwargs = kwargs.copy()  # type: ignore
-        additional_kwargs.pop(self.lookup_url_kwarg, None)  # type: ignore
+        additional_kwargs = kwargs.copy()
+        additional_kwargs.pop(self.lookup_url_kwarg, None)
         context = {
             "additional_kwargs": additional_kwargs,
             "user": request.user,
@@ -33,23 +45,36 @@ class OCreateMixin:
             "action": "create",
         }
 
-        serializer = self.create_serializer_class(data=request.data, context=context)  # type: ignore
+        if self.create_serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Create serializer class is not specified",
+                ui_description="Create serializer class is not specified",
+            ).serialize_response()
+        if self.serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Serializer class is not specified",
+                ui_description="Serializer class is not specified",
+            ).serialize_response()
+
+        serializer = self.create_serializer_class(data=request.data, context=context)
 
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
-        response_serializer = self.serializer_class(instance)  # type: ignore
+        response_serializer = self.serializer_class(instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class OListMixin:
+class OListMixin(Generic[M]):
     """
     Provides list method for OViewSet.
     """
 
-    def list(self, request, *args, **kwargs):
+    def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
-        additional_kwargs.pop(self.lookup_url_kwarg, None)  # type: ignore
+        additional_kwargs.pop(self.lookup_url_kwarg, None)
         context = {
             "additional_kwargs": additional_kwargs,
             "user": request.user,
@@ -57,28 +82,73 @@ class OListMixin:
             "action": "list",
         }
 
-        queryset = prefetch(self.get_queryset(), self.serializer_class, context=context)  # type: ignore
+        if self.serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Serializer class is not specified",
+                ui_description="Serializer class is not specified",
+            ).serialize_response()
+        queryset: QuerySet = prefetch(
+            self.get_queryset(), self.serializer_class, context=context
+        )
         if hasattr(self, "filter_backends"):
-            for backend in list(self.filter_backends):  # type: ignore
-                queryset = backend().filter_queryset(self.request, queryset, self)  # type: ignore
+            for backend in list(self.filter_backends):
+                queryset = backend().filter_queryset(request, queryset, self)
 
-        serializer = self.serializer_class(queryset, many=True, context=context)  # type: ignore
+        serializer = self.serializer_class(queryset, many=True, context=context)
         return Response(serializer.data)
 
 
-class ORetrieveMixin:
+class OPaginatedListMixin(Generic[M]):
+    """
+    Provides list method with support for pagination for OViewSet.
+
+    This mixin provides cursor pagination: user should pass the
+    starting point, direction and count of items to retrieve.
+    """
+
+    def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+        # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
+        additional_kwargs = kwargs.copy()
+        additional_kwargs.pop(self.lookup_url_kwarg, None)
+        context = {
+            "additional_kwargs": additional_kwargs,
+            "user": request.user,
+            "request": request,
+            "action": "list",
+        }
+
+        if self.serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Serializer class is not specified",
+                ui_description="Serializer class is not specified",
+            ).serialize_response()
+
+        queryset: QuerySet[M] = self.get_queryset()
+
+        queryset = prefetch(queryset, self.serializer_class, context=context)
+        if hasattr(self, "filter_backends"):
+            for backend in list(self.filter_backends):
+                queryset = backend().filter_queryset(request, queryset, self)
+
+        serializer = self.serializer_class(queryset, many=True, context=context)
+        return Response(serializer.data)
+
+
+class ORetrieveMixin(Generic[M]):
     """
     Provides retrieve method for OViewSet.
     """
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()  # type: ignore
+    def retrieve(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+        instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
 
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
-        additional_kwargs.pop(self.lookup_url_kwarg, None)  # type: ignore
+        additional_kwargs.pop(self.lookup_url_kwarg, None)
         context = {
             "additional_kwargs": additional_kwargs,
             "user": request.user,
@@ -86,25 +156,32 @@ class ORetrieveMixin:
             "action": "retrieve",
         }
 
-        serializer = self.serializer_class(instance, context=context)  # type: ignore
+        if self.serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Serializer class is not specified",
+                ui_description="Serializer class is not specified",
+            ).serialize_response()
+        serializer = self.serializer_class(instance, context=context)
 
         return Response(serializer.data)
 
 
-class OUpdateMixin:
+
+class OUpdateMixin(Generic[M]):
     """
     Provides put/patch methods for OViewSet.
     """
 
-    def update(self, request, *args, **kwargs):
+    def update(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
         partial = kwargs.pop("partial", False)
-        instance = self.get_object()  # type: ignore
+        instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
 
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
-        additional_kwargs.pop(self.lookup_url_kwarg, None)  # type: ignore
+        additional_kwargs.pop(self.lookup_url_kwarg, None)
         context = {
             "additional_kwargs": additional_kwargs,
             "user": request.user,
@@ -112,11 +189,28 @@ class OUpdateMixin:
             "action": "update",
         }
 
+        if self.serializer_class is None:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description="Serializer class is not specified",
+                ui_description="Serializer class is not specified",
+            ).serialize_response()
+
         # Decide if dedicated update serializer should be used based on its presence in the viewset class
-        if self.update_serializer_class is not None:  # type: ignore
-            serializer = self.update_serializer_class(instance, data=request.data, partial=partial, context=context)  # type: ignore
+        if self.update_serializer_class is not None:
+            serializer = self.update_serializer_class(
+                instance, data=request.data, partial=partial, context=context
+            )
         else:
-            serializer = self.create_serializer_class(instance, data=request.data, partial=partial, context=context)  # type: ignore
+            if self.create_serializer_class is None:
+                return Error(
+                    error_code=codes.internal_server_error,
+                    eng_description="Create serializer class is not specified",
+                    ui_description="Create serializer class is not specified",
+                ).serialize_response()
+            serializer = self.create_serializer_class(
+                instance, data=request.data, partial=partial, context=context
+            )
 
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -124,7 +218,7 @@ class OUpdateMixin:
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to forcibly invalidate the prefetch cache on
             # the instance to re-fetch updated data from the database.
-            instance._prefetched_objects_cache = {}
+            instance._prefetched_objects_cache = {}  # type: ignore
 
         response_context = {
             "additional_kwargs": additional_kwargs,
@@ -133,26 +227,30 @@ class OUpdateMixin:
             "action": "retrieve",
         }
 
-        response_serializer = self.serializer_class(instance, context=response_context)  # type: ignore
+        response_serializer = self.serializer_class(instance, context=response_context)
         return Response(response_serializer.data)
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(
+        self: "OViewSetProtocol[M]", request: Request, *args, **kwargs
+    ) -> Response:
         kwargs["partial"] = True
-        return self.update(request, *args, **kwargs)
+        # TODO: fix this type ingore. Self should be annotated with both OViewSetProtocol and OUpdateMixin.
+        # But with Python type system it's impossible to express that.
+        return self.update(request, *args, **kwargs)  # type: ignore
 
 
-class ODestroyMixin:
+class ODestroyMixin(Generic[M]):
     """
     Provides delete method for OViewSet.
     """
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()  # type: ignore
+    def destroy(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+        instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
 
         # Check RBAC permissions
-        if self.use_rbac:  # type: ignore
+        if self.use_rbac:
             permissions = get_complete_instance_rbac_roles(
                 request.user,
                 instance._meta.model,
@@ -163,7 +261,8 @@ class ODestroyMixin:
 
             all_permissions = merge_permissions(permissions)
             has_permission = (
-                has_access_to_entire_model(all_permissions, instance._meta.model, "d") or request.user.is_superuser
+                has_access_to_entire_model(all_permissions, instance._meta.model, "d")
+                or request.user.is_superuser
             )
             if not has_permission:
                 return Error(
@@ -184,7 +283,7 @@ class ODestroyMixin:
             ).serialize_response()
 
 
-class ORelationsMixin:
+class ORelationsMixin(Generic[M]):
     # noinspection PyProtectedMember
     @extend_schema(
         summary="Получить список всех связей с другими объектами",
@@ -192,20 +291,25 @@ class ORelationsMixin:
         responses={200: RelationSerializer(many=True)},
     )
     @action(["GET"], detail=True)
-    def relations(self, request, *args, **kwargs):
+    def relations(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
         # noinspection PyUnresolvedReferences
-        instance = self.get_object()  # type: ignore
+        instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
 
         # Check RBAC permissions
-        if self.use_rbac:  # type: ignore
-            permissions = get_complete_instance_rbac_roles(request.user, instance, instance.pk)
+        if self.use_rbac:
+            permissions = get_complete_instance_rbac_roles(
+                request.user, instance.__class__, instance.pk
+            )
             if isinstance(permissions, Error):
                 return permissions.serialize_response()
 
             all_permissions = merge_permissions(permissions)
-            has_permission = has_access_to_entire_model(all_permissions, instance, "r") or request.user.is_superuser
+            has_permission = (
+                has_access_to_entire_model(all_permissions, instance.__class__, "r")
+                or request.user.is_superuser
+            )
             if not has_permission:
                 return Error(
                     error_code=codes.permission_denied,
@@ -219,7 +323,9 @@ class ORelationsMixin:
         return Response(response_serializer.data)
 
 
-class OModelMixins(OCreateMixin, OUpdateMixin, OListMixin, ORetrieveMixin, ODestroyMixin):
+class OModelMixins(
+    OCreateMixin[M], OUpdateMixin[M], OListMixin[M], ORetrieveMixin[M], ODestroyMixin[M]
+):
     """
     Contains all model methods in a single mixin for easy import.
     """

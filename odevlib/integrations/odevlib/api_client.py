@@ -58,7 +58,7 @@ class ODLAPIClient:
             f"{self.base_url}/{url}",
             json=body,
             headers=headers,
-            query_params=query_params,
+            params=query_params,
         )
 
         try:

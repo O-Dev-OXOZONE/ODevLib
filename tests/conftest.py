@@ -1,9 +1,6 @@
 import pytest
+from django.contrib.auth.models import AbstractUser, User
 from rest_framework.test import APIClient
-from django.contrib.auth.models import AbstractUser
-from django.contrib.auth import get_user_model
-
-User = get_user_model()
 
 
 @pytest.fixture
