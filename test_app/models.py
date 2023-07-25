@@ -3,7 +3,7 @@ from django.db import models
 from odevlib.models.omodel import OModel
 
 
-class TestOModel(OModel):
+class ExampleOModel(OModel):
     """
     Used to test the OModel lifecycle and correctness of created/updated fields logic.
 
@@ -13,12 +13,12 @@ class TestOModel(OModel):
     test_field = models.TextField()
 
 
-class TestOneToOneOModel(OModel):
+class ExampleOneToOneOModel(OModel):
     """
     Used to test the OModel lifecycle and correctness of created/updated fields logic.
 
     This model contains a OneToOneField as primary key.
     """
 
-    sibling = models.OneToOneField(TestOModel, on_delete=models.CASCADE, related_name="sibling")
+    sibling = models.OneToOneField(ExampleOModel, on_delete=models.CASCADE, related_name="sibling")
     test_field = models.TextField()

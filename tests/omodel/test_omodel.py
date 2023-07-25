@@ -1,21 +1,21 @@
 import pytest
 from django.contrib.auth import get_user_model
-from test_app.models import TestOneToOneOModel
+from test_app.models import ExampleOneToOneOModel
 
-from test_app.models import TestOModel
+from test_app.models import ExampleOModel
 from django.contrib.auth.models import User
 
 
 @pytest.fixture
-def test_omodel(user: User) -> TestOModel:
-    model = TestOModel(test_field="Test value")
+def test_omodel(user: User) -> ExampleOModel:
+    model = ExampleOModel(test_field="Test value")
     model.save(user=user)
     return model
 
 
 @pytest.mark.django_db
 def test_omodel_lifecycle(user: User):
-    instance = TestOModel(test_field="Test value")
+    instance = ExampleOModel(test_field="Test value")
     instance.save(user=user)
 
     created_at = instance.created_at
@@ -29,8 +29,8 @@ def test_omodel_lifecycle(user: User):
 
 
 @pytest.mark.django_db
-def test_omodel_lifecycle_with_one_to_one(user: User, test_omodel: TestOModel):
-    instance = TestOneToOneOModel(sibling=test_omodel, test_field="Test value")
+def test_omodel_lifecycle_with_one_to_one(user: User, test_omodel: ExampleOModel):
+    instance = ExampleOneToOneOModel(sibling=test_omodel, test_field="Test value")
     instance.save(user=user)
 
     created_at = instance.created_at

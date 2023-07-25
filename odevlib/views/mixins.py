@@ -99,12 +99,14 @@ class OListMixin(Generic[M]):
         return Response(serializer.data)
 
 
-class OPaginatedListMixin(Generic[M]):
+class OCursorPaginatedListMixin(Generic[M]):
     """
-    Provides list method with support for pagination for OViewSet.
+    Provides list method with support for cursor pagination for OViewSet:
+    user should pass the starting point, direction and count of items to retrieve.
 
-    This mixin provides cursor pagination: user should pass the
-    starting point, direction and count of items to retrieve.
+    You can only get primary-key-ordered results when using this type of pagination.
+
+    If no query parameters are passed, than all results are returned without any pagination.
     """
 
     def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
@@ -118,6 +120,28 @@ class OPaginatedListMixin(Generic[M]):
             "action": "list",
         }
 
+        # Used when navigating backward
+        first_id: str | None = request.query_params.get("start_id", None)
+        # Used when navigating forward
+        last_id: str | None = request.query_params.get("last_id", None)
+
+        count_str: str = request.query_params.get("count", "50")
+        try:
+            count = int(count_str)
+        except ValueError:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description="Count parameter must be int",
+                ui_description="Count parameter must be int",
+            ).serialize_response()
+
+        if first_id is not None and last_id is not None:
+            return Error(
+                error_code=codes.invalid_request_data,
+                eng_description="Can't use both first_id and last_id. Please specify only one argument.",
+                ui_description="Can't use both first_id and last_id. Please specify only one argument.",
+            ).serialize_response()
+
         if self.serializer_class is None:
             return Error(
                 error_code=codes.internal_server_error,
@@ -126,6 +150,13 @@ class OPaginatedListMixin(Generic[M]):
             ).serialize_response()
 
         queryset: QuerySet[M] = self.get_queryset()
+
+        if first_id is not None:
+            queryset = queryset.filter(pk__lt=first_id).order_by("pk")
+            queryset = queryset[:count]
+        elif last_id is not None:
+            queryset = queryset.filter(pk__gt=last_id).order_by("pk")
+            queryset = queryset[:count]
 
         queryset = prefetch(queryset, self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
@@ -165,7 +196,6 @@ class ORetrieveMixin(Generic[M]):
         serializer = self.serializer_class(instance, context=context)
 
         return Response(serializer.data)
-
 
 
 class OUpdateMixin(Generic[M]):
@@ -234,7 +264,7 @@ class OUpdateMixin(Generic[M]):
         self: "OViewSetProtocol[M]", request: Request, *args, **kwargs
     ) -> Response:
         kwargs["partial"] = True
-        # TODO: fix this type ingore. Self should be annotated with both OViewSetProtocol and OUpdateMixin.
+        # TODO: fix this type ignore. Self should be annotated with both OViewSetProtocol and OUpdateMixin.
         # But with Python type system it's impossible to express that.
         return self.update(request, *args, **kwargs)  # type: ignore
 
