@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, TypeAlias, TypeVar, Union
 import typing
+import textwrap
 
 from django.db import models
 from django.db.models import ProtectedError
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -88,9 +89,7 @@ class OListMixin(Generic[M]):
                 eng_description="Serializer class is not specified",
                 ui_description="Serializer class is not specified",
             ).serialize_response()
-        queryset: QuerySet = prefetch(
-            self.get_queryset(), self.serializer_class, context=context
-        )
+        queryset: QuerySet = prefetch(self.get_queryset(), self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
             for backend in list(self.filter_backends):
                 queryset = backend().filter_queryset(request, queryset, self)
@@ -109,6 +108,43 @@ class OCursorPaginatedListMixin(Generic[M]):
     If no query parameters are passed, than all results are returned without any pagination.
     """
 
+    @extend_schema(
+        summary="Get paginated list of objects",
+        description=textwrap.dedent(
+            """
+            Allows to reliably retrieve data by chunks using cursor pagination.
+
+            If no query parameters are passed, than latest `count` rows are returned.
+            The first data retrieval is expected to be done without query parameters to get
+            the first chunk.
+
+            After you obtain the chunk, it is possible to use `first_id` and `last_id` query parameters
+            to retrieve neighboring chunks.
+            """
+        ),
+        request=None,
+        responses={200: list},
+        parameters=[
+            OpenApiParameter(
+                name="start_id",
+                description="ID of the first available object. New objects will go backwards with respect to this ID",
+                required=False,
+                type=int,
+            ),
+            OpenApiParameter(
+                name="last_id",
+                description="ID of the last available object. New objects will go forward with respect to this ID",
+                required=False,
+                type=int,
+            ),
+            OpenApiParameter(
+                name="count",
+                description="Number of new objects to return",
+                required=False,
+                type=int,
+            ),
+        ],
+    )
     def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
@@ -121,7 +157,7 @@ class OCursorPaginatedListMixin(Generic[M]):
         }
 
         # Used when navigating backward
-        first_id: str | None = request.query_params.get("start_id", None)
+        first_id: str | None = request.query_params.get("first_id", None)
         # Used when navigating forward
         last_id: str | None = request.query_params.get("last_id", None)
 
@@ -151,12 +187,21 @@ class OCursorPaginatedListMixin(Generic[M]):
 
         queryset: QuerySet[M] = self.get_queryset()
 
+        queryset = queryset.order_by("pk")
         if first_id is not None:
-            queryset = queryset.filter(pk__lt=first_id).order_by("pk")
+            queryset = queryset.filter(pk__lt=first_id)
+            available_count = queryset.count()
             queryset = queryset[:count]
+            filtered_count = queryset.count()
         elif last_id is not None:
-            queryset = queryset.filter(pk__gt=last_id).order_by("pk")
+            queryset = queryset.filter(pk__gt=last_id)
+            available_count = queryset.count()
             queryset = queryset[:count]
+            filtered_count = queryset.count()
+        else:
+            available_count = queryset.count()
+            queryset = queryset[:count]
+            filtered_count = queryset.count()
 
         queryset = prefetch(queryset, self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
@@ -164,7 +209,12 @@ class OCursorPaginatedListMixin(Generic[M]):
                 queryset = backend().filter_queryset(request, queryset, self)
 
         serializer = self.serializer_class(queryset, many=True, context=context)
-        return Response(serializer.data)
+        return Response(
+            serializer.data,
+            headers={
+                "X-ODEVLIB-HAS-MORE": str(filtered_count < available_count).lower(),
+            },
+        )
 
 
 class ORetrieveMixin(Generic[M]):
@@ -228,9 +278,7 @@ class OUpdateMixin(Generic[M]):
 
         # Decide if dedicated update serializer should be used based on its presence in the viewset class
         if self.update_serializer_class is not None:
-            serializer = self.update_serializer_class(
-                instance, data=request.data, partial=partial, context=context
-            )
+            serializer = self.update_serializer_class(instance, data=request.data, partial=partial, context=context)
         else:
             if self.create_serializer_class is None:
                 return Error(
@@ -238,9 +286,7 @@ class OUpdateMixin(Generic[M]):
                     eng_description="Create serializer class is not specified",
                     ui_description="Create serializer class is not specified",
                 ).serialize_response()
-            serializer = self.create_serializer_class(
-                instance, data=request.data, partial=partial, context=context
-            )
+            serializer = self.create_serializer_class(instance, data=request.data, partial=partial, context=context)
 
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
@@ -260,9 +306,7 @@ class OUpdateMixin(Generic[M]):
         response_serializer = self.serializer_class(instance, context=response_context)
         return Response(response_serializer.data)
 
-    def partial_update(
-        self: "OViewSetProtocol[M]", request: Request, *args, **kwargs
-    ) -> Response:
+    def partial_update(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:
         kwargs["partial"] = True
         # TODO: fix this type ignore. Self should be annotated with both OViewSetProtocol and OUpdateMixin.
         # But with Python type system it's impossible to express that.
@@ -291,8 +335,7 @@ class ODestroyMixin(Generic[M]):
 
             all_permissions = merge_permissions(permissions)
             has_permission = (
-                has_access_to_entire_model(all_permissions, instance._meta.model, "d")
-                or request.user.is_superuser
+                has_access_to_entire_model(all_permissions, instance._meta.model, "d") or request.user.is_superuser
             )
             if not has_permission:
                 return Error(
@@ -329,16 +372,13 @@ class ORelationsMixin(Generic[M]):
 
         # Check RBAC permissions
         if self.use_rbac:
-            permissions = get_complete_instance_rbac_roles(
-                request.user, instance.__class__, instance.pk
-            )
+            permissions = get_complete_instance_rbac_roles(request.user, instance.__class__, instance.pk)
             if isinstance(permissions, Error):
                 return permissions.serialize_response()
 
             all_permissions = merge_permissions(permissions)
             has_permission = (
-                has_access_to_entire_model(all_permissions, instance.__class__, "r")
-                or request.user.is_superuser
+                has_access_to_entire_model(all_permissions, instance.__class__, "r") or request.user.is_superuser
             )
             if not has_permission:
                 return Error(
@@ -353,9 +393,7 @@ class ORelationsMixin(Generic[M]):
         return Response(response_serializer.data)
 
 
-class OModelMixins(
-    OCreateMixin[M], OUpdateMixin[M], OListMixin[M], ORetrieveMixin[M], ODestroyMixin[M]
-):
+class OModelMixins(OCreateMixin[M], OUpdateMixin[M], OListMixin[M], ORetrieveMixin[M], ODestroyMixin[M]):
     """
     Contains all model methods in a single mixin for easy import.
     """

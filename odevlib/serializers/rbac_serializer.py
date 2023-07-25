@@ -188,6 +188,7 @@ class RBACSerializerMixin(_Base):
                 eng_description="Action was not passed to RBACSerializer .get_fields()",
                 ui_description="Action не был передан в .get_fields() RBACSerializer'а",
             ).save()
+            return fields
 
         # Give full access to all fields to superusers
         if user.is_superuser:

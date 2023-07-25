@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path
 from rest_framework.routers import BaseRouter, DefaultRouter, SimpleRouter
 
-from test_app.views import ExampleOModelViewSet
+from test_app.views import ExampleOModelViewSet, PaginatedExampleOModelViewSet
 
 
 # Use this file to register DRF views/viewsets for your app.
@@ -16,6 +16,7 @@ else:
 
 
 router.register("example_omodel", ExampleOModelViewSet, basename="example_omodel")
+router.register("paginated_example_omodel", PaginatedExampleOModelViewSet, basename="paginated_example_omodel")
 
 
 app_name = "test_app"
