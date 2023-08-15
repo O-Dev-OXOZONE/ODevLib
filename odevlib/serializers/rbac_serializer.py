@@ -220,7 +220,6 @@ class RBACSerializerMixin(_Base):
             ]
         )
 
-        pk = self.get_pk()
         # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
         has_inheritance = isinstance(self.Meta.model, RBACHierarchyModelMixin)
 
