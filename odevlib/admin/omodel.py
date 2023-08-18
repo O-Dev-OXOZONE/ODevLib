@@ -1,17 +1,18 @@
+from typing import Any, Generic, TypeVar
+
 from django.contrib import admin
-from django.contrib.auth.models import AbstractUser, User
 from django.http import HttpRequest
-from typing import Any
+from typing_extensions import override
 
 from odevlib.models.omodel import OModel
 
+T = TypeVar("T", bound=OModel)
 
-class OModelAdmin(admin.ModelAdmin):
+
+class OModelAdmin(admin.ModelAdmin, Generic[T]):
     readonly_fields = ["created_by", "updated_by"]
 
-    def save_model(
-        self, request: HttpRequest, obj: OModel, form: Any, change: bool
-    ) -> None:
-        user: User = request.user  # type: ignore
-        assert isinstance(user, AbstractUser)
+    @override
+    def save_model(self, request: HttpRequest, obj: T, _form: Any, _change: bool) -> None:
+        user = request.user
         obj.save(user=user)
