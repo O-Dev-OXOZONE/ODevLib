@@ -1,14 +1,10 @@
 import inspect
+from collections.abc import Callable, Sequence
 from typing import (
-    Any,
-    Callable,
+    ClassVar,
     Generic,
-    Optional,
     Protocol,
-    Sequence,
-    Type,
     TypeVar,
-    Union,
 )
 
 from django.db.models import Model, QuerySet
@@ -22,9 +18,9 @@ from rest_framework.permissions import (
 )
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSetMixin
+
 from odevlib.errors import codes
 from odevlib.models.errors import Error
-
 from odevlib.views import OModelMixins
 
 T = TypeVar("T", bound=Model)
@@ -32,15 +28,16 @@ T = TypeVar("T", bound=Model)
 
 class OViewSetProtocol(Protocol, Generic[T]):
     """
-    This protocol is used to ensure that OViewSet has all necessary fields.
+    Protocol used to ensure that OViewSet has all necessary fields.
     """
 
     # SERIALIZERS SECTION #
     @property
-    def serializer_class(self) -> Optional[Type[serializers.ModelSerializer[T]]]: ...
+    def serializer_class(self) -> type[serializers.ModelSerializer[T]] | None:
+        ...
 
-    create_serializer_class: Optional[Type[serializers.ModelSerializer[T]]]
-    update_serializer_class: Optional[Type[serializers.ModelSerializer[T]]]
+    create_serializer_class: type[serializers.ModelSerializer[T]] | None
+    update_serializer_class: type[serializers.ModelSerializer[T]] | None
 
     # URL SECTION #
     # Name of the main lookup kwarg used in the URL. Used for retrieve/put/patch methods.
@@ -61,13 +58,13 @@ class OViewSetProtocol(Protocol, Generic[T]):
     def get_queryset(self) -> QuerySet[T]:
         ...
 
-    def get_object(self) -> Union[T, Error]:
+    def get_object(self) -> T | Error:
         ...
 
 
 class OViewSet(ViewSetMixin, APIView, Generic[T]):
     """
-    This class implements ODevLib custom opinionated ViewSet. It includes:
+    Implements ODevLib custom opinionated ViewSet. It includes:
       - Support for multiple query parameters.
       - Support for ODevLib permission system.
 
@@ -89,18 +86,18 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
     """
 
     # SERIALIZERS SECTION #
-    serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
-    create_serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
-    update_serializer_class: Optional[Type[serializers.ModelSerializer[T]]] = None
+    serializer_class: type[serializers.ModelSerializer[T]] | None = None
+    create_serializer_class: type[serializers.ModelSerializer[T]] | None = None
+    update_serializer_class: type[serializers.ModelSerializer[T]] | None = None
 
     # DATABASE INTERACTION SECTION #
-    queryset: Optional[QuerySet[T]] = None
+    queryset: QuerySet[T] | None = None
 
     # URL SECTION #
     # Name of the main lookup kwarg used in the URL. Used for retrieve/put/patch methods.
     lookup_url_kwarg = "pk"
 
-    additional_query_parameters: dict[str, list[OpenApiParameter]] = {
+    additional_query_parameters: ClassVar[dict[str, list[OpenApiParameter]]] = {
         "list": [],
         "retrieve": [],
         "update": [],
@@ -110,21 +107,16 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
     }
 
     # You can override these fields to add prefetch/select related fields to the query to get rid of N+1 problem.
-    prefetch_related_fields: list[str] = []
-    select_related_fields: list[str] = []
+    prefetch_related_fields: tuple[str, ...] = ()
+    select_related_fields: tuple[str, ...] = ()
 
     # Permission setup
     use_rbac: bool = False
     permission_classes: Sequence[  # type: ignore
-        Union[
-            Callable[[], BasePermission],
-            Type[BasePermission],
-            OperandHolder,
-            SingleOperandHolder,
-        ]
+        Callable[[], BasePermission] | type[BasePermission] | OperandHolder | SingleOperandHolder
     ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:  # noqa: ARG002
         super().__init__()
         from odevlib.schema.oautoschema import OAutoSchema
 
@@ -139,11 +131,11 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
             if hasattr(self, method):
                 m = getattr(self.__class__, method)
                 # Ignore actions that have custom schema set (i.e. with @extend_schema).
-                if hasattr(m, "kwargs") and "schema" in getattr(m, "kwargs"):
+                if hasattr(m, "kwargs") and "schema" in m.kwargs:
                     continue
-                setattr(m, "kwargs", {"schema": OAutoSchema})
+                m.kwargs = {"schema": OAutoSchema}
 
-    def filter_by_kwargs(self, queryset: QuerySet[T], kwargs: dict) -> QuerySet[T]:
+    def filter_by_kwargs(self, queryset: QuerySet[T], kwargs: dict) -> QuerySet[T]:  # noqa: ARG002
         """
         If several URL arguments are present, you may use this method to filter queryset by the additional kwargs.
         """
@@ -186,34 +178,21 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
 
         return queryset
 
-    def get_object(self) -> Union[T, Error]:
+    def get_object(self) -> T | Error:
         """
-        Returns the object the view is displaying.
+        Return the object the view is displaying.
         """
         queryset = self.get_queryset()
 
         # Ensure lookup field is present in URL query params (which is automatically parsed into kwargs).
         assert self.lookup_url_kwarg in self.kwargs, (
-            "Expected view %s to be called with a URL keyword argument "
-            'named "%s". Fix your URL conf, or set the `.lookup_field` '
+            f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
+            f'named "{self.lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '
             "attribute on the view correctly."
-            % (self.__class__.__name__, self.lookup_url_kwarg)
         )
 
         # Get and return object, raising error if necessary.
         pk = self.kwargs[self.lookup_url_kwarg]
-
-        # if not isinstance(pk, int):
-        #     try:
-        #         # If passed pk is not of int type, try to convert it to it.
-        #         pk = int(pk)
-        #     except ValueError:
-        #         # If conversion failed, return error.
-        #         return Error(
-        #             error_code=codes.internal_server_error,
-        #             eng_description=f'Expected pk to be int in get_object(), got "{pk}"',
-        #             ui_description=f'В get_object() ожидался int как тип pk, был получен "{pk}"',
-        #         )
 
         try:
             return queryset.get(**{self.lookup_url_kwarg: pk})
@@ -222,8 +201,8 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
             # noinspection PyProtectedMember
             return Error(
                 error_code=codes.does_not_exist,
-                eng_description=f"{inspect.getmro(queryset.model)[0].__name__} instance with pk={pk}",
-                ui_description=f"{queryset.model._meta.verbose_name} с pk={pk} не существует",
+                eng_description=f"{inspect.getmro(queryset.model)[0].__name__} instance with pk={pk} does not exist",
+                ui_description=f"{queryset.model._meta.verbose_name} with pk={pk} does not exist",  # noqa: SLF001
             )
 
 

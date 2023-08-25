@@ -1,5 +1,5 @@
 import traceback
-from typing import Type
+from typing import ClassVar
 
 from django.db.models import Model
 from rest_framework.fields import empty
@@ -26,11 +26,11 @@ class OModelSerializer(ModelSerializer):
 
 class OModelCreateSerializer(ModelSerializer):
     class Meta:
-        model: Type[Model]
+        model: type[Model]
         # Tuple may be used to specify particular fields to be used.
         # "__all__" string may be used to include all discovered fields.
         fields: tuple[str, ...] = ()
-        custom_validation_errors: dict[str, dict[str, str]] = {}
+        custom_validation_errors: ClassVar[dict[str, dict[str, str]]] = {}
 
     def __init__(self, instance=None, data=empty, **kwargs):
         super().__init__(instance, data, **kwargs)

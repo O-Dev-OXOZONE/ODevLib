@@ -11,9 +11,6 @@ class OModel(models.Model):
     Base model that keeps track of the creator, updater and create/update date.
     """
 
-    class Meta:
-        abstract = True
-
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Дата создания",
@@ -37,26 +34,30 @@ class OModel(models.Model):
 
     history = HistoricalRecords(inherit=True)
 
+    class Meta:
+        abstract = True
+
     def save(
         self,
-        force_insert=False,
-        force_update=False,
-        using=None,
-        update_fields=None,
-        *args,
+        force_insert=False,  # noqa: ANN001
+        force_update=False,  # noqa: ANN001
+        using=None,  # noqa: ANN001
+        update_fields=None,  # noqa: ANN001
+        *args,  # noqa: ARG002
         **kwargs,
     ) -> None:
         user: User = kwargs.get("user", None)
         if user is None and ((_user := get_user()) is not None):
             user = _user
         if user is None:
-            raise ValueError(
-                f"User was not passed to the {self.__class__.__name__} save method and "
-                "could not be retrieved from the middleware"
+            msg = (
+                f"User was not passed to the {self.__class__.__name__} "
+                "save method and could not be retrieved from the middleware"
             )
+            raise ValueError(msg)
 
-        self.updated_by = user  # type: ignore
+        self.updated_by = user  # type: ignore[assignment]
         if self._state.adding is True:
-            self.created_by = user  # type: ignore
+            self.created_by = user  # type: ignore[assignment]
 
         super().save(force_insert, force_update, using, update_fields)
