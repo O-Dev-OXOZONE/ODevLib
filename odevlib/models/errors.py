@@ -12,7 +12,7 @@ class Error(models.Model):
         verbose_name="Код ошибки",
     )
     eng_description = models.TextField(
-        verbose_name="Техническое описание ошибки для разработчиков"
+        verbose_name="Техническое описание ошибки для разработчиков",
     )
     ui_description = models.TextField(
         verbose_name="Описание для UI",

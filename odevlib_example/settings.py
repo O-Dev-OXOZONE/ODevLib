@@ -52,6 +52,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "odevlib.middleware.current_user.CurrentUserMiddleware",
+    "odevlib.middleware.timescale_logger.TimescaleLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "odevlib_example.urls"
