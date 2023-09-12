@@ -37,6 +37,12 @@ class OModel(models.Model):
     class Meta:
         abstract = True
 
+    def before_save(self, *args, **kwargs) -> None:
+        """
+        Hook for doing something before saving the model.
+        """
+        pass
+
     def save(
         self,
         force_insert=False,  # noqa: ANN001
@@ -59,5 +65,7 @@ class OModel(models.Model):
         self.updated_by = user  # type: ignore[assignment]
         if self._state.adding is True:
             self.created_by = user  # type: ignore[assignment]
+
+        self.before_save(*args, **kwargs)
 
         super().save(force_insert, force_update, using, update_fields)
