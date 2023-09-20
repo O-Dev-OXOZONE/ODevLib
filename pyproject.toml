@@ -14,6 +14,7 @@ drf-spectacular = "^0.26.1"
 drf-spectacular-sidecar = "^2023.3.1"
 psycopg2-binary = "^2.9.5"
 django-filter = "^22.1"
+django-timescaledb = "^0.2.13"
 
 
 [tool.poetry.dev-dependencies]
@@ -43,3 +44,38 @@ sphinx-autoapi = "^2.1.0"
 sphinx-autobuild = "^2021.3.14"
 types-redis = "^4.5.5.2"
 
+
+# ==== Ruff ====
+[tool.ruff]
+line-length = 119
+target-version = "py311"
+exclude = [
+    "migrations",
+]
+select = ["ALL", "NURSERY"]
+ignore = [
+    "Q", # flake8-quotes
+    "D100", # undocumented-public-module Missing docstring in public module
+    "D101", # undocumented-public-class "Missing" # docstring in public class
+    "D102", # undocumented-public-method Missing docstring "in" # public method
+    "D103", # undocumented-public-function Missing docstring in "public" # function
+    "D104", # undocumented-public-package Missing docstring in public package "🛠"
+    "D105", # undocumented-magic-method Missing docstring in magic method
+    "D106", # # undocumented-public-nested-class Missing docstring in public nested class
+    "D107", # # undocumented-public-init Missing docstring in __init__
+    "ANN101", # missing-type-self. Allow to not specify type for `self` argument
+    "TD003", # missing-todo-link missing issue link on the line following this TODO
+    "TD002", # missing-todo-author  missing author in TODO; try: `# TODO(<author_name>): ...` or `# TODO @<author_name>: ...`Ruff
+    "S101", # assert Use of assert detected
+    "D200", # matter of personal preference. Allow single-line docstrings to be on a separate line from """
+    "D202", # matter of personal preference. Allow blank lines after docstrings inside functions
+    "D205", # matter of personal preference. Allow to write a single docstring instead of summary/in-depth description
+    "D212", # matter of personal preference. Allow starting docstring on a new line, not on a """ line
+    "RUF005", # matter of personal preference. Allow concatenation like `[...] + another_list` instead of `[..., *another_list]`
+    "CPY001", # Don't require copyright notice at the top of a file
+    "DJ001", # Allow null=True in string-based fields. This may be opinionated, but in my opinion it should be either NULL or formatted value e-mail, URL, etc.
+    "FBT001", # Allow to declare boolean arguments for functions
+    "FBT002", # Allow to specify default boolean values in function declarations. # TODO: dig deeper into why this even exists
+    "ANN002", # Allow omitting type annotations for *args. We usually use them to silently pass all esoteric unknown arguments that library functions may expect or pass themselves.
+    "ANN003", # Allow omitting type annotations for **kwargs. We usually use them to silently pass all esoteric unknown arguments that library functions may expect or pass themselves.
+]

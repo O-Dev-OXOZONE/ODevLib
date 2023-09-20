@@ -3,8 +3,8 @@ Contains various functional programming utilities.
 """
 
 from collections import defaultdict
-from typing import Callable, Iterable, Tuple
-from typing import List, TypeVar, Optional
+from collections.abc import Callable, Iterable
+from typing import Optional, TypeVar
 
 T = TypeVar("T")
 """ Generic type variable for use in type annotations. """
@@ -13,9 +13,9 @@ V = TypeVar("V")
 """ Generic type variable for use in type annotations. """
 
 
-def flatten(list_of_lists: Iterable[Iterable[T]]) -> List[T]:
+def flatten(list_of_lists: Iterable[Iterable[T]]) -> list[T]:
     """
-    Extracts nested lists of elements into a single list of elements.
+    Extract nested lists of elements into a single list of elements.
 
     Example:
 
@@ -39,21 +39,19 @@ def first(iterable: Iterable[T]) -> Optional[T]:
     return next(iterable.__iter__(), None)
 
 
-def lazy_filter(
-    check: Callable[[T], bool], iterable: Iterable[Callable[[], T]]
-) -> Iterable[T]:
+def lazy_filter(check: Callable[[T], bool], iterable: Iterable[Callable[[], T]]) -> Iterable[T]:
     for x in iterable:
         if check(val := x()):
             yield val
 
 
-def lazy_not_nullable_first(iterable: Iterable[Callable[[], T]]) -> Optional[T]:
+def lazy_not_nullable_first(iterable: Iterable[Callable[[], T]]) -> T | None:
     return first(lazy_filter(lambda x: x is not None, iterable))
 
 
-def filter_non_null(iterable: Iterable[Optional[T]]) -> Iterable[T]:
+def filter_non_null(iterable: Iterable[T | None]) -> Iterable[T]:
     """
-    Filters out null values from an iterable.
+    Filter out null values from an iterable.
 
     Example:
 
@@ -66,11 +64,10 @@ def filter_non_null(iterable: Iterable[Optional[T]]) -> Iterable[T]:
             yield it
 
 
-def group_by(
-    it: Iterable[T], field_extractor: Callable[[T], V]
-) -> Iterable[Tuple[V, List[T]]]:
+def group_by(it: Iterable[T], field_extractor: Callable[[T], V]) -> Iterable[tuple[V, list[T]]]:
     """
-    Groups elements of an iterable by a given field.
+    Group elements of an iterable by a given field.
+
     @param it: iterable to process
     @param field_extractor: function to extract a field from an element of the iterable
     @return: iterable of tuples (field_value, list_of_elements_with_this_field_value)

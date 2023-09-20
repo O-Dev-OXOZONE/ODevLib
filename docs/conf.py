@@ -20,8 +20,8 @@ django.setup()
 
 
 project = "ODevLib"
-copyright = "2023, IamMaxim, https://the-o.co"
-author = "IamMaxim"
+copyright = "2023, O.dev, https://the-o.co"
+author = "O.dev"
 release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------

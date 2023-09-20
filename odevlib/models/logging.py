@@ -16,9 +16,9 @@ class RequestLogEntry(TimescaleModel):
         null=True,
         blank=True,
     )
-    application = models.CharField(max_length=32, verbose_name="Application name")
-    method = models.CharField(max_length=7, verbose_name="HTTP method")
-    path = models.CharField(max_length=511, verbose_name="HTTP path")
+    application = models.TextField(verbose_name="Application name")
+    method = models.TextField(verbose_name="HTTP method")
+    path = models.TextField(verbose_name="HTTP path")
     code = models.IntegerField(verbose_name="HTTP status code")
     processing_time = models.IntegerField(verbose_name="Request execution time (ms)")
     request = models.TextField(verbose_name="Request body (in case of non-2xx status code)", blank=True, null=True)
