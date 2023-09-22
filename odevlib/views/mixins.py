@@ -9,6 +9,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
+from odevlib.business_logic.pagination import paginate_queryset
 
 from odevlib.business_logic.rbac.permissions import (
     get_complete_instance_rbac_roles,
@@ -126,7 +127,7 @@ class OCursorPaginatedListMixin(Generic[M]):
         responses={200: list},
         parameters=[
             OpenApiParameter(
-                name="start_id",
+                name="first_id",
                 description="ID of the first available object. New objects will go backwards with respect to this ID",
                 required=False,
                 type=int,
@@ -145,7 +146,7 @@ class OCursorPaginatedListMixin(Generic[M]):
             ),
         ],
     )
-    def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def list(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: A003, ARG002
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
         additional_kwargs.pop(self.lookup_url_kwarg, None)
@@ -160,23 +161,7 @@ class OCursorPaginatedListMixin(Generic[M]):
         first_id: str | None = request.query_params.get("first_id", None)
         # Used when navigating forward
         last_id: str | None = request.query_params.get("last_id", None)
-
-        count_str: str = request.query_params.get("count", "50")
-        try:
-            count = int(count_str)
-        except ValueError:
-            return Error(
-                error_code=codes.invalid_request_data,
-                eng_description="Count parameter must be int",
-                ui_description="Count parameter must be int",
-            ).serialize_response()
-
-        if first_id is not None and last_id is not None:
-            return Error(
-                error_code=codes.invalid_request_data,
-                eng_description="Can't use both first_id and last_id. Please specify only one argument.",
-                ui_description="Can't use both first_id and last_id. Please specify only one argument.",
-            ).serialize_response()
+        count: str = request.query_params.get("count", "50")
 
         if self.serializer_class is None:
             return Error(
@@ -188,20 +173,11 @@ class OCursorPaginatedListMixin(Generic[M]):
         queryset: QuerySet[M] = self.get_queryset()
 
         queryset = queryset.order_by("pk")
-        if first_id is not None:
-            queryset = queryset.filter(pk__lt=first_id)
-            available_count = queryset.count()
-            queryset = queryset[:count]
-            filtered_count = queryset.count()
-        elif last_id is not None:
-            queryset = queryset.filter(pk__gt=last_id)
-            available_count = queryset.count()
-            queryset = queryset[:count]
-            filtered_count = queryset.count()
-        else:
-            available_count = queryset.count()
-            queryset = queryset[:count]
-            filtered_count = queryset.count()
+        result = paginate_queryset(queryset, first_id, last_id, count)
+        if isinstance(result, Error):
+            return result.serialize_response()
+
+        queryset, available_count, filtered_count = result
 
         queryset = prefetch(queryset, self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
