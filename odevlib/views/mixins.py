@@ -62,9 +62,15 @@ class OCreateMixin(Generic[M]):
         serializer = self.create_serializer_class(data=request.data, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        instance = self.perform_create(serializer)  # type: ignore
         response_serializer = self.serializer_class(instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self: "OViewSetProtocol[M]", serializer: TypeAlias) -> Union[M, Error]:
+        """
+        Hook for custom create logic.
+        """
+        return serializer.save()
 
 
 class OListMixin(Generic[M]):
