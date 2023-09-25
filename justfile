@@ -7,7 +7,7 @@ docker:
   docker compose -f docker-compose.test.yml up -d postgres
 
 test:
-  pytest pear2pay
+  pytest
 
 runserver:
   python manage.py runserver localhost:8000
@@ -19,4 +19,4 @@ makemigrations +ARGS:
   python manage.py makemigrations {{ARGS}}
 
 ruff:
-  ruff check pear2pay
+  ruff check odevlib odevlib_example
