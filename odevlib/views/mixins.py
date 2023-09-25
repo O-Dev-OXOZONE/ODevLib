@@ -1,16 +1,17 @@
-from typing import TYPE_CHECKING, TypeAlias, TypeVar, Union
-import typing
 import textwrap
+from typing import Generic
+from typing import TYPE_CHECKING, TypeVar, Union
 
 from django.db import models
 from django.db.models import ProtectedError
+from django.db.models import QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from odevlib.business_logic.pagination import paginate_queryset
 
+from odevlib.business_logic.pagination import paginate_queryset
 from odevlib.business_logic.rbac.permissions import (
     get_complete_instance_rbac_roles,
     has_access_to_entire_model,
@@ -21,12 +22,9 @@ from odevlib.errors import codes
 from odevlib.models.errors import Error
 from odevlib.prefetching import prefetch
 from odevlib.serializers.related import RelationSerializer
-from django.db.models import QuerySet
-from typing import Generic
 
 if TYPE_CHECKING:
     from odevlib.views.oviewset import OViewSetProtocol
-
 
 M = TypeVar("M", bound=models.Model)
 
@@ -64,14 +62,23 @@ class OCreateMixin(Generic[M]):
 
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)  # type: ignore
+        if isinstance(instance, Error):
+            return instance.serialize_response()
         response_serializer = self.serializer_class(instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_create(self: "OViewSetProtocol[M]", serializer: TypeAlias) -> Union[M, Error]:
+    def perform_create(self, serializer) -> Union[M, Error]:
         """
         Hook for custom create logic.
         """
-        return serializer.save()
+        try:
+            return serializer.save()
+        except Exception as e:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description=f"Error while creating object: {e}",
+                ui_description="Error while creating object",
+            )
 
 
 class OListMixin(Generic[M]):
@@ -271,7 +278,9 @@ class OUpdateMixin(Generic[M]):
             serializer = self.create_serializer_class(instance, data=request.data, partial=partial, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        instance = self.perform_update(serializer)  # type: ignore
+        if isinstance(instance, Error):
+            return instance.serialize_response()
 
         if getattr(instance, "_prefetched_objects_cache", None):
             # If 'prefetch_related' has been applied to a queryset, we need to forcibly invalidate the prefetch cache on
@@ -287,6 +296,19 @@ class OUpdateMixin(Generic[M]):
 
         response_serializer = self.serializer_class(instance, context=response_context)
         return Response(response_serializer.data)
+
+    def perform_update(self, serializer) -> Union[M, Error]:
+        """
+        Hook for custom update logic.
+        """
+        try:
+            return serializer.save()
+        except Exception as e:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description=f"Error while updating object: {e}",
+                ui_description="Error while updating object",
+            )
 
     def partial_update(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:
         kwargs["partial"] = True
@@ -327,15 +349,21 @@ class ODestroyMixin(Generic[M]):
                 ).serialize_response()
 
         try:
-            instance.delete()
+            self.perform_destroy(instance)  # type: ignore
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ProtectedError:
             return Error(
                 error_code=codes.protected_instance,
                 eng_description="This instance has protected relations with other instances. Delete related first",
                 ui_description="Эта сущность имеет защищенные связи с другими сущностями. "
-                "Удалите их перед тем, как удалять эту сущность",
+                               "Удалите их перед тем, как удалять эту сущность",
             ).serialize_response()
+
+    def perform_destroy(self, instance) -> None:
+        """
+        Hook for custom destroy logic.
+        """
+        instance.delete()
 
 
 class ORelationsMixin(Generic[M]):
