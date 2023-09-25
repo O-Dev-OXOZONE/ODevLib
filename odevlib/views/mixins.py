@@ -1,16 +1,15 @@
-from typing import TYPE_CHECKING, TypeAlias, TypeVar, Union
-import typing
 import textwrap
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from django.db import models
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, QuerySet
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from odevlib.business_logic.pagination import paginate_queryset
 
+from odevlib.business_logic.pagination import paginate_queryset
 from odevlib.business_logic.rbac.permissions import (
     get_complete_instance_rbac_roles,
     has_access_to_entire_model,
@@ -21,8 +20,6 @@ from odevlib.errors import codes
 from odevlib.models.errors import Error
 from odevlib.prefetching import prefetch
 from odevlib.serializers.related import RelationSerializer
-from django.db.models import QuerySet
-from typing import Generic
 
 if TYPE_CHECKING:
     from odevlib.views.oviewset import OViewSetProtocol
@@ -90,7 +87,12 @@ class OListMixin(Generic[M]):
                 eng_description="Serializer class is not specified",
                 ui_description="Serializer class is not specified",
             ).serialize_response()
-        queryset: QuerySet = prefetch(self.get_queryset(), self.serializer_class, context=context)
+
+        queryset = self.get_queryset()
+        if isinstance(queryset, Error):
+            return queryset.serialize_response()
+
+        queryset: QuerySet = prefetch(queryset, self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
             for backend in list(self.filter_backends):
                 queryset = backend().filter_queryset(request, queryset, self)
@@ -170,7 +172,9 @@ class OCursorPaginatedListMixin(Generic[M]):
                 ui_description="Serializer class is not specified",
             ).serialize_response()
 
-        queryset: QuerySet[M] = self.get_queryset()
+        queryset: QuerySet[M] | Error = self.get_queryset()
+        if isinstance(queryset, Error):
+            return queryset.serialize_response()
 
         queryset = queryset.order_by("pk")
         result = paginate_queryset(queryset, first_id, last_id, count)
