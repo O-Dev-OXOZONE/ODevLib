@@ -1,5 +1,5 @@
 import textwrap
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar, Union
 
 from django.db import models
 from django.db.models import ProtectedError, QuerySet
@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer
 
 from odevlib.business_logic.pagination import paginate_queryset
 from odevlib.business_logic.rbac.permissions import (
@@ -23,7 +24,6 @@ from odevlib.serializers.related import RelationSerializer
 
 if TYPE_CHECKING:
     from odevlib.views.oviewset import OViewSetProtocol
-
 
 M = TypeVar("M", bound=models.Model)
 
@@ -60,9 +60,24 @@ class OCreateMixin(Generic[M]):
         serializer = self.create_serializer_class(data=request.data, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        instance = self.perform_create(serializer)  # type: ignore
+        if isinstance(instance, Error):
+            return instance.serialize_response()
         response_serializer = self.serializer_class(instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer) -> Union[M, Error]:
+        """
+        Hook for custom create logic.
+        """
+        try:
+            return serializer.save()
+        except Exception as e:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description=f"Error while creating object: {e}",
+                ui_description="Error while creating object",
+            )
 
 
 class OListMixin(Generic[M]):
@@ -88,14 +103,17 @@ class OListMixin(Generic[M]):
                 ui_description="Serializer class is not specified",
             ).serialize_response()
 
-        queryset = self.get_queryset()
+        queryset: QuerySet[M] | Error = self.get_queryset()
         if isinstance(queryset, Error):
             return queryset.serialize_response()
 
-        queryset: QuerySet = prefetch(queryset, self.serializer_class, context=context)
+        queryset = prefetch(queryset, self.serializer_class, context=context)
         if hasattr(self, "filter_backends"):
             for backend in list(self.filter_backends):
                 queryset = backend().filter_queryset(request, queryset, self)
+
+        if isinstance(queryset, Error):
+            return queryset.serialize_response()
 
         serializer = self.serializer_class(queryset, many=True, context=context)
         return Response(serializer.data)
@@ -188,6 +206,9 @@ class OCursorPaginatedListMixin(Generic[M]):
             for backend in list(self.filter_backends):
                 queryset = backend().filter_queryset(request, queryset, self)
 
+        if isinstance(queryset, Error):
+            return queryset.serialize_response()
+
         serializer = self.serializer_class(queryset, many=True, context=context)
         return Response(
             serializer.data,
@@ -233,7 +254,7 @@ class OUpdateMixin(Generic[M]):
     Provides put/patch methods for OViewSet.
     """
 
-    def update(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def update(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: ARG002
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         if isinstance(instance, Error):
@@ -269,12 +290,14 @@ class OUpdateMixin(Generic[M]):
             serializer = self.create_serializer_class(instance, data=request.data, partial=partial, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        instance = self.perform_update(serializer)  # type: ignore[attr-defined]
+        if isinstance(instance, Error):
+            return instance.serialize_response()
 
         if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to forcibly invalidate the prefetch cache on
-            # the instance to re-fetch updated data from the database.
-            instance._prefetched_objects_cache = {}  # type: ignore
+            # If 'prefetch_related' has been applied to a queryset, we need to forcibly invalidate the prefetch cache
+            # on the instance to re-fetch updated data from the database.
+            instance._prefetched_objects_cache = {}  # type: ignore[attr-defined]  # noqa: SLF001
 
         response_context = {
             "additional_kwargs": additional_kwargs,
@@ -286,11 +309,24 @@ class OUpdateMixin(Generic[M]):
         response_serializer = self.serializer_class(instance, context=response_context)
         return Response(response_serializer.data)
 
+    def perform_update(self, serializer: ModelSerializer[M]) -> M | Error:
+        """
+        Hook for custom update logic.
+        """
+        try:
+            return serializer.save()
+        except Exception as e:
+            return Error(
+                error_code=codes.internal_server_error,
+                eng_description=f"Error while updating object: {e}",
+                ui_description="Error while updating object",
+            )
+
     def partial_update(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:
         kwargs["partial"] = True
         # TODO: fix this type ignore. Self should be annotated with both OViewSetProtocol and OUpdateMixin.
         # But with Python type system it's impossible to express that.
-        return self.update(request, *args, **kwargs)  # type: ignore
+        return self.update(request, *args, **kwargs)  # type: ignore[attr-defined]
 
 
 class ODestroyMixin(Generic[M]):
@@ -298,7 +334,7 @@ class ODestroyMixin(Generic[M]):
     Provides delete method for OViewSet.
     """
 
-    def destroy(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def destroy(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: ARG002
         instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
@@ -307,7 +343,7 @@ class ODestroyMixin(Generic[M]):
         if self.use_rbac:
             permissions = get_complete_instance_rbac_roles(
                 request.user,
-                instance._meta.model,
+                instance._meta.model,  # noqa: SLF001
                 instance.pk,
             )
             if isinstance(permissions, Error):
@@ -325,7 +361,7 @@ class ODestroyMixin(Generic[M]):
                 ).serialize_response()
 
         try:
-            instance.delete()
+            self.perform_destroy(instance)  # type: ignore
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ProtectedError:
             return Error(
@@ -334,6 +370,12 @@ class ODestroyMixin(Generic[M]):
                 ui_description="Эта сущность имеет защищенные связи с другими сущностями. "
                 "Удалите их перед тем, как удалять эту сущность",
             ).serialize_response()
+
+    def perform_destroy(self, instance) -> None:
+        """
+        Hook for custom destroy logic.
+        """
+        instance.delete()
 
 
 class ORelationsMixin(Generic[M]):
@@ -344,7 +386,7 @@ class ORelationsMixin(Generic[M]):
         responses={200: RelationSerializer(many=True)},
     )
     @action(["GET"], detail=True)
-    def relations(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def relations(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: ARG002
         # noinspection PyUnresolvedReferences
         instance = self.get_object()
         if isinstance(instance, Error):
