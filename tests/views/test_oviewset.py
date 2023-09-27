@@ -1,14 +1,14 @@
-from datetime import UTC
-from django.contrib.auth.models import User
 import pytest
+from django.contrib.auth.models import User
+from rest_framework import status
 from rest_framework.test import APIClient
-from odevlib.utils.functional import first
 
+from odevlib.utils.functional import first
 from test_app.models import ExampleOModel
 
 
-@pytest.fixture
-@pytest.mark.django_db
+@pytest.fixture()
+@pytest.mark.django_db()
 def populated_example_omodel(superuser: User) -> list[ExampleOModel]:
     return ExampleOModel.objects.bulk_create(
         ExampleOModel(
@@ -21,17 +21,17 @@ def populated_example_omodel(superuser: User) -> list[ExampleOModel]:
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_list(
     authorized_api_client: APIClient,
-    populated_example_omodel,
+    populated_example_omodel: list[ExampleOModel],  # noqa: ARG001
 ) -> None:
     response = authorized_api_client.get("/test_app/example_omodel/")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 100
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_retrieve(
     authorized_api_client: APIClient,
     populated_example_omodel: list[ExampleOModel],
@@ -41,7 +41,7 @@ def test_example_omodel_retrieve(
     instance: ExampleOModel | None = first(filter(lambda x: x.id == 1, populated_example_omodel))
     assert instance is not None
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
         "id": 1,
         "test_field": "test 1",
@@ -52,7 +52,7 @@ def test_example_omodel_retrieve(
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_create(authorized_api_client: APIClient, user: User) -> None:
     response = authorized_api_client.post(
         "/test_app/example_omodel/",
@@ -60,7 +60,7 @@ def test_example_omodel_create(authorized_api_client: APIClient, user: User) -> 
             "test_field": "test",
         },
     )
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
     json = response.json()
     # id has a random auto-incremented value, it makes no sense to test for it
     json.pop("id")
@@ -73,7 +73,7 @@ def test_example_omodel_create(authorized_api_client: APIClient, user: User) -> 
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_update(
     authorized_api_client: APIClient,
     populated_example_omodel: list[ExampleOModel],
@@ -89,7 +89,7 @@ def test_example_omodel_update(
     updated_instance = ExampleOModel.objects.get(id=1)
     assert instance is not None
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.json() == {
         "id": 1,
         "test_field": "test",
@@ -100,54 +100,54 @@ def test_example_omodel_update(
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_delete(
     authorized_api_client: APIClient,
-    populated_example_omodel: list[ExampleOModel],
+    populated_example_omodel: list[ExampleOModel],  # noqa: ARG001
 ) -> None:
     response = authorized_api_client.delete("/test_app/example_omodel/1/")
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.content == b""
     assert ExampleOModel.objects.filter(id=1).count() == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db()
 def test_example_omodel_list_paginated(
     authorized_api_client: APIClient,
-    populated_example_omodel: list[ExampleOModel],
+    populated_example_omodel: list[ExampleOModel],  # noqa: ARG001
 ) -> None:
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 10
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "true"
 
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10&last_id=10")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 10
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "true"
 
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10&last_id=90")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 10
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "false"
 
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10&last_id=91")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 9
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "false"
 
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10&first_id=10")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 9
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "false"
 
     response = authorized_api_client.get("/test_app/paginated_example_omodel/?count=10&first_id=100")
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.json()) == 10
     assert "x-odevlib-has-more" in response.headers
     assert response.headers["x-odevlib-has-more"] == "true"

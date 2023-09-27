@@ -55,7 +55,7 @@ class OViewSetProtocol(Protocol, Generic[T]):
     def filter_by_kwargs(self, queryset: QuerySet[T], kwargs: dict) -> QuerySet[T]:
         ...
 
-    def get_queryset(self) -> QuerySet[T]:
+    def get_queryset(self) -> QuerySet[T] | Error:
         ...
 
     def get_object(self) -> T | Error:
@@ -141,7 +141,7 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
         """
         return queryset
 
-    def get_queryset(self) -> QuerySet[T]:
+    def get_queryset(self) -> QuerySet[T] | Error:
         """
         Get the list of items for this view.
         This must be an iterable, and may be a queryset.
@@ -183,6 +183,8 @@ class OViewSet(ViewSetMixin, APIView, Generic[T]):
         Return the object the view is displaying.
         """
         queryset = self.get_queryset()
+        if isinstance(queryset, Error):
+            return queryset
 
         # Ensure lookup field is present in URL query params (which is automatically parsed into kwargs).
         assert self.lookup_url_kwarg in self.kwargs, (
