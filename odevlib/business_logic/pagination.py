@@ -21,8 +21,8 @@ def paginate_queryset(
         except ValueError:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description="Count parameter must be int",
-                ui_description="Count parameter must be int",
+                eng_description="count must be int",
+                ui_description="count must be int",
             )
 
     if first_id is not None and last_id is not None:
@@ -32,15 +32,33 @@ def paginate_queryset(
             ui_description="Can't use both first_id and last_id. Please specify only one argument.",
         )
 
+    try:
+        first_id_num = int(first_id) if first_id is not None else None
+    except ValueError:
+        return Error(
+            error_code=codes.invalid_request_data,
+            eng_description="first_id must be int",
+            ui_description="first_id must be int",
+        )
+
+    try:
+        last_id_num = int(last_id) if last_id is not None else None
+    except ValueError:
+        return Error(
+            error_code=codes.invalid_request_data,
+            eng_description="last_id must be int",
+            ui_description="last_id must be int",
+        )
+
     queryset = qs
 
-    if first_id is not None:
-        queryset = queryset.filter(pk__lt=first_id)
+    if first_id_num is not None:
+        queryset = queryset.filter(pk__lt=first_id_num)
         available_count = queryset.count()
         queryset = queryset[:count]
         filtered_count = queryset.count()
-    elif last_id is not None:
-        queryset = queryset.filter(pk__gt=last_id)
+    elif last_id_num is not None:
+        queryset = queryset.filter(pk__gt=last_id_num)
         available_count = queryset.count()
         queryset = queryset[:count]
         filtered_count = queryset.count()
