@@ -60,13 +60,13 @@ class OCreateMixin(Generic[M]):
         serializer = self.create_serializer_class(data=request.data, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = self.perform_create(serializer)  # type: ignore
+        instance = self.perform_create(serializer)
         if isinstance(instance, Error):
             return instance.serialize_response()
         response_serializer = self.serializer_class(instance)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_create(self, serializer) -> Union[M, Error]:
+    def perform_create(self, serializer) -> M | Error:
         """
         Hook for custom create logic.
         """
@@ -85,7 +85,7 @@ class OListMixin(Generic[M]):
     Provides list method for OViewSet.
     """
 
-    def list(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def list(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: A003, ARG002
         # Prepare additional kwargs, which contain non-pk URL lookup fields and profile of requester.
         additional_kwargs = kwargs.copy()
         additional_kwargs.pop(self.lookup_url_kwarg, None)
@@ -141,7 +141,7 @@ class OCursorPaginatedListMixin(Generic[M]):
 
             After you obtain the chunk, it is possible to use `first_id` and `last_id` query parameters
             to retrieve neighboring chunks.
-            """
+            """,
         ),
         request=None,
         responses={200: list},
@@ -223,7 +223,7 @@ class ORetrieveMixin(Generic[M]):
     Provides retrieve method for OViewSet.
     """
 
-    def retrieve(self: "OViewSetProtocol[M]", request, *args, **kwargs) -> Response:
+    def retrieve(self: "OViewSetProtocol[M]", request: Request, *args, **kwargs) -> Response:  # noqa: ARG002
         instance = self.get_object()
         if isinstance(instance, Error):
             return instance.serialize_response()
@@ -361,7 +361,7 @@ class ODestroyMixin(Generic[M]):
                 ).serialize_response()
 
         try:
-            self.perform_destroy(instance)  # type: ignore
+            self.perform_destroy(instance)
             return Response(status=status.HTTP_204_NO_CONTENT)
         except ProtectedError:
             return Error(
@@ -371,7 +371,7 @@ class ODestroyMixin(Generic[M]):
                 "Удалите их перед тем, как удалять эту сущность",
             ).serialize_response()
 
-    def perform_destroy(self, instance) -> None:
+    def perform_destroy(self, instance: M) -> None:
         """
         Hook for custom destroy logic.
         """
