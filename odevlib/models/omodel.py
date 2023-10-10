@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
+
 from django.conf import settings
-from django.contrib.auth.models import User
 from django.db import models
-from simple_history.models import HistoricalRecords  # type: ignore
+from simple_history.models import HistoricalRecords  # type: ignore[import]
 
 from odevlib.middleware import get_user
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
 
 
 class OModel(models.Model):
@@ -37,19 +41,13 @@ class OModel(models.Model):
     class Meta:
         abstract = True
 
-    def before_save(self, *args, **kwargs) -> None:
-        """
-        Hook for doing something before saving the model.
-        """
-        pass
-
     def save(
         self,
         force_insert=False,  # noqa: ANN001
         force_update=False,  # noqa: ANN001
         using=None,  # noqa: ANN001
         update_fields=None,  # noqa: ANN001
-        *args,  # noqa: ARG002
+        *args,
         **kwargs,
     ) -> None:
         user: User = kwargs.get("user", None)
@@ -69,3 +67,8 @@ class OModel(models.Model):
         self.before_save(*args, **kwargs)
 
         super().save(force_insert, force_update, using, update_fields)
+
+    def before_save(self, *args, **kwargs) -> None:
+        """
+        Allow customizing behavior before saving the model.
+        """

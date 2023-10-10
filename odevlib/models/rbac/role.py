@@ -1,4 +1,4 @@
-from typing import Mapping
+from collections.abc import Mapping
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.fields import HStoreField
@@ -56,10 +56,10 @@ class RBACRole(OModel):
             # Postgres trigger will still prevent alteration of the name, but handling this in Django additionally
             # allows to return a pretty human-readable error.
             current: RBACRole = RBACRole.objects.get(pk=self.pk)
-            if 'name' in kwargs.keys() and current.name != kwargs['name']:
+            if 'name' in kwargs and current.name != kwargs['name']:
                 raise ImmutableException(
                     message="Can't modify RBACRole name, as it is immutable",
-                    ui_message="Невозможно модифицировать поле name у RBACRole, так как оно неизменяемое"
+                    ui_message="Can't modify RBACRole name, as it is immutable",
                 )
         super().save(*args, **kwargs)
 

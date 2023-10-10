@@ -356,8 +356,8 @@ class ODestroyMixin(Generic[M]):
             if not has_permission:
                 return Error(
                     error_code=codes.permission_denied,
-                    eng_description=f"You do not have access to delete this object",
-                    ui_description=f"У вас нет прав на удаление этого объекта",
+                    eng_description="You do not have access to delete this object",
+                    ui_description="You do not have access to delete this object",
                 ).serialize_response()
 
         try:
@@ -367,8 +367,7 @@ class ODestroyMixin(Generic[M]):
             return Error(
                 error_code=codes.protected_instance,
                 eng_description="This instance has protected relations with other instances. Delete related first",
-                ui_description="Эта сущность имеет защищенные связи с другими сущностями. "
-                "Удалите их перед тем, как удалять эту сущность",
+                ui_description="This instance has protected relations with other instances. Delete related first",
             ).serialize_response()
 
     def perform_destroy(self, instance: M) -> None:
@@ -381,7 +380,7 @@ class ODestroyMixin(Generic[M]):
 class ORelationsMixin(Generic[M]):
     # noinspection PyProtectedMember
     @extend_schema(
-        summary="Получить список всех связей с другими объектами",
+        summary="Get a list of relations with other objects",
         request=None,
         responses={200: RelationSerializer(many=True)},
     )
@@ -405,8 +404,8 @@ class ORelationsMixin(Generic[M]):
             if not has_permission:
                 return Error(
                     error_code=codes.permission_denied,
-                    eng_description=f"You do not have access to get this model relations",
-                    ui_description=f"У вас нет прав на получение связей этого объекта",
+                    eng_description="You do not have access to get this model relations",
+                    ui_description="You do not have access to get this model relations",
                 ).serialize_response()
 
         result = get_relations(instance)

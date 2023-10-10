@@ -2,12 +2,8 @@ import copy
 import traceback
 import typing
 from collections import OrderedDict
-from typing import Optional, Type
 from typing import TYPE_CHECKING
-from odevlib.errors import codes
-from odevlib.models.errors import Error
 
-from django.contrib.auth.models import AbstractUser
 from django.db import models
 from rest_framework import serializers
 from rest_framework.exceptions import APIException
@@ -15,21 +11,24 @@ from rest_framework.fields import Field
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.settings import api_settings
 from rest_framework.utils import model_meta
+
 from odevlib.business_logic.rbac.permissions import (
     get_allowed_model_fields,
-    get_instance_rbac_roles,
     get_direct_rbac_roles,
+    get_instance_rbac_roles,
     has_access_to_model_field,
     merge_permissions,
 )
-
+from odevlib.errors import codes
 from odevlib.middleware import get_user
+from odevlib.models.errors import Error
 from odevlib.models.rbac.mixins import RBACHierarchyModelMixin
+from odevlib.serializers.omodelserializer import OModelCreateSerializer, OModelSerializer
 
 if TYPE_CHECKING:
-    _Base = serializers.ModelSerializer
-else:
-    _Base = object
+    from django.contrib.auth.models import AbstractUser
+
+_Base = serializers.ModelSerializer if TYPE_CHECKING else object
 
 # List of fields which are always available regardless of the role. By default, this includes only
 # 'id' field.
@@ -47,7 +46,7 @@ action_to_mode_mapping = {
 
 # TODO: deal with type ignore
 class RBACSerializerMixin(_Base):
-    def get_pk(self) -> Optional[int]:
+    def get_pk(self) -> int | None:
         if self.context["action"] in ["list"]:
             # In list action, we get sequence of instances, so we pick the first one and base our
             # field selection only on the first instance.
@@ -66,45 +65,18 @@ class RBACSerializerMixin(_Base):
 
         elif self.context["action"] in ["retrieve"]:
             assert self.instance is not None
-            pk = self.instance.pk  # type: ignore
+            pk = self.instance.pk
 
         elif self.context["action"] in ["update", "partial_update"]:
             assert self.instance is not None
             pk = self.initial_data["pk"]
 
         elif self.context["action"] in ["create"]:
-            # In create action, we need to check parent to derive the permissions of a new child.
-            # If method for getting parent is not specified, we give no access to creating a new
-            # instance.
-            # if isinstance(self.instance, RBACHierarchyModelMixin):
-            #    parent_model = self.instance.get_rbac_parent_model()
-            #    parent_field_name = self.instance.get_rbac_parent_field_name()
-
-            #    # Short-circuit current fields, as the following logic does not apply to creation.
-            #    if parent_model is None or parent_field_name is None:
-            #        return fields
-
-            #    parent_pk = fields[parent_field_name]
-
-            #    # No parent pk --- no fields. Only int is accepted as ID of the instance.
-            #    if not isinstance(parent_pk, int):
-            #        return fields
-
-            #    # Check instance-level full-model access modes for the parent
-            #    has_instance_level_full_model_access = has_instance_level_access_to_entire_model(
-            #        user, parent_model, parent_pk, mode
-            #    )
-            #    if has_instance_level_full_model_access:
-            #        return fields
-            # else:
-            #    # If the model does not provide references for the parent, we can't obtain more
-            #    # permission info.
-            #    return fields
-
             # In case of creation, we don't have pk yet.
             return None
         else:
-            raise APIException(f'Unknown action {self.context["action"]} in RBACSerializer')
+            msg = f"Unknown action {self.context['action']} in RBACSerializer"
+            raise APIException(msg)
         return pk
 
     def get_fields(self) -> dict[str, Field]:
@@ -121,13 +93,14 @@ class RBACSerializerMixin(_Base):
         assert hasattr(self.Meta, "model"), 'Class {self.__class__.__name__} missing "Meta.model" attribute'
 
         if model_meta.is_abstract_model(self.Meta.model):
-            raise ValueError("Cannot use ModelSerializer with Abstract Models.")
+            msg = "Cannot use ModelSerializer with Abstract Models."
+            raise ValueError(msg)
 
-        declared_fields: OrderedDict[str, Field] = copy.deepcopy(self._declared_fields)  # type: ignore
-        model: Type[models.Model] = getattr(self.Meta, "model")
+        declared_fields: OrderedDict[str, Field] = copy.deepcopy(self._declared_fields)
+        model: type[models.Model] = self.Meta.model
         depth = getattr(self.Meta, "depth", 0)
 
-        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"  # type: ignore
+        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"
 
         assert isinstance(depth, int), "'depth' must be an integer."
         if depth is not None:
@@ -165,7 +138,7 @@ class RBACSerializerMixin(_Base):
             field_class, field_kwargs = self.build_field(source, model_field_info, model, depth)
 
             # Include any kwargs defined in `Meta.extra_kwargs`
-            field_kwargs = self.include_extra_kwargs(field_kwargs, extra_field_kwargs)  # type: ignore
+            field_kwargs = self.include_extra_kwargs(field_kwargs, extra_field_kwargs)
 
             # Create the serializer field.
             fields[field_name] = field_class(**field_kwargs)
@@ -173,20 +146,18 @@ class RBACSerializerMixin(_Base):
         # Add in any hidden fields.
         fields.update(hidden_fields)
 
-        user: Optional[AbstractUser] = get_user()
+        user: AbstractUser | None = get_user()
         if user is None:
             # This should never happen, as even unauthorized users have AnonymousUser instance.
             raise APIException(f"Couldn't obtain user in {self.__class__.__name__}")
 
         # We require context, as it contains action and we can't get fields without knowing
         # what are we getting fields for.
-        # assert self.context is not None, f"Context was not passed to {self.__class__.__name__}"
-        # assert "action" in self.context, f"Action is not specified in context of {self.__class__.__name__}"
         if self.context is None or "action" not in self.context:
             Error(
                 error_code=codes.internal_server_error,
                 eng_description="Action was not passed to RBACSerializer .get_fields()",
-                ui_description="Action не был передан в .get_fields() RBACSerializer'а",
+                ui_description="Action was not passed to RBACSerializer .get_fields()",
             ).save()
             return fields
 
@@ -207,8 +178,6 @@ class RBACSerializerMixin(_Base):
             else:
                 instance = self.instance
 
-        print("Instance:", instance, "of type", type(instance))
-
         # Global permissions are used in cases when we do not have access to the instance.
         global_permissions = merge_permissions(get_direct_rbac_roles(user))
         globally_available_fields = OrderedDict(
@@ -217,7 +186,7 @@ class RBACSerializerMixin(_Base):
                 for field_name, field in fields.items()
                 if field_name in always_available_fields
                 or has_access_to_model_field(global_permissions, model, field_name, mode)
-            ]
+            ],
         )
 
         # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
@@ -227,7 +196,6 @@ class RBACSerializerMixin(_Base):
         if instance is None:
             if not has_inheritance:
                 # If we don't even have a parent, return permissions based on global roles only.
-                print("returning globally available fields")
                 return globally_available_fields
             else:
                 # We have a parent, use it.
@@ -244,63 +212,44 @@ class RBACSerializerMixin(_Base):
                     # If we don't have parent pk, fall back to global permissions.
                     return globally_available_fields
                 instance_level_parent_permissions = merge_permissions(
-                    get_instance_rbac_roles(user, parent_model, parent_pk)
+                    get_instance_rbac_roles(user, parent_model, parent_pk),
                 )
-
-                print("Instance level parent permissions:", instance_level_parent_permissions)
 
                 allowed_fields = get_allowed_model_fields(
                     permissions=instance_level_parent_permissions,
                     model=model_name,
                     mode=mode,
                 )
-                available_fields = OrderedDict(
+                return OrderedDict(
                     [
                         (field_name, field)
                         for field_name, field in fields.items()
                         if field_name in always_available_fields or field_name in allowed_fields
-                    ]
+                    ],
                 )
-                return available_fields
         else:
             roles = get_direct_rbac_roles(user)
 
-        print("Roles:", roles)
         permissions = merge_permissions(roles)
-        print("Permissions:", permissions)
 
-        if model_name in permissions.keys():
+        if model_name in permissions:
             return fields
 
         allowed_fields = get_allowed_model_fields(
             permissions=permissions,
-            model=model_name,  # type: ignore
+            model=model_name,
             mode=mode,
         )
-        print("Allowed fields:", allowed_fields)
-        available_fields = OrderedDict(
+        return OrderedDict(
             [
                 (field_name, field)
                 for field_name, field in fields.items()
                 if field_name in always_available_fields or field_name in allowed_fields
-            ]
+            ],
         )
-        print("Allowed fields:", allowed_fields)
-        return available_fields
 
 
-# noinspection DuplicatedCode
-class RBACSerializer(RBACSerializerMixin, serializers.ModelSerializer):
-    pass
-
-
-class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
-    class Meta:
-        model: Type[models.Model]
-        # Tuple may be used to specify particular fields to be used.
-        # "__all__" string may be used to include all discovered fields.
-        fields: tuple[str, ...] = ()
-
+class RBACCreateSerializerMixin(_Base):
     def create(self, validated_data):
         """
         We have a bit of extra checking around this in order to provide
@@ -325,7 +274,7 @@ class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
         raise_errors_on_nested_writes("create", self, validated_data)
 
         save_kwargs = {}
-        additional_kwargs = self.context.get("additional_kwargs", dict())
+        additional_kwargs = self.context.get("additional_kwargs", {})
         for key, value in additional_kwargs.items():
             save_kwargs[key] = value
         save_kwargs["user"] = self.context["user"]
@@ -342,28 +291,19 @@ class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
                 many_to_many[field_name] = validated_data.pop(field_name)
 
         try:
-            # instance = ModelClass._default_manager.create(**validated_data)
             instance = ModelClass(**validated_data, **additional_kwargs)
             instance.save(force_insert=True, **save_kwargs)
-        except TypeError:
+        except TypeError as e:
             tb = traceback.format_exc()
             msg = (
-                "Got a `TypeError` when calling `%s.%s.create()`. "
+                f"Got a `TypeError` when calling `{ModelClass.__name__}.{ModelClass._default_manager.name}.create()`. "
                 "This may be because you have a writable field on the "
                 "serializer class that is not a valid argument to "
-                "`%s.%s.create()`. You may need to make the field "
-                "read-only, or override the %s.create() method to handle "
-                "this correctly.\nOriginal exception was:\n %s"
-                % (
-                    ModelClass.__name__,
-                    ModelClass._default_manager.name,
-                    ModelClass.__name__,
-                    ModelClass._default_manager.name,
-                    self.__class__.__name__,
-                    tb,
-                )
+                f"`{ModelClass.__name__}.{ModelClass._default_manager.name}.create()`. You may need to make the field "
+                f"read-only, or override the {self.__class__.__name__}.create() method to handle "
+                f"this correctly.\nOriginal exception was:\n {tb}"
             )
-            raise TypeError(msg)
+            raise TypeError(msg) from e
 
         # Save many-to-many relationships after the instance is created.
         if many_to_many:
@@ -375,14 +315,14 @@ class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
 
     def update(self, instance: models.Model, validated_data):
         save_kwargs = {}
-        for key, value in self.context.get("additional_kwargs", dict()).items():
+        for key, value in self.context.get("additional_kwargs", {}).items():
             save_kwargs[key] = value
         save_kwargs["user"] = self.context["user"]
 
         raise_errors_on_nested_writes("update", self, validated_data)
 
         # get_field_info has incorrect type annotations in the stub, so we have to ignore the type :c
-        info = model_meta.get_field_info(instance)  # type: ignore
+        info = model_meta.get_field_info(instance)
 
         # Simply set each attribute on the instance, and then save it.
         # Note that unlike `.create()` we don't need to treat many-to-many
@@ -405,3 +345,19 @@ class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
             field.set(value)
 
         return instance
+
+
+class RBACSerializer(RBACSerializerMixin, serializers.ModelSerializer):
+    pass
+
+
+class RBACOSerializer(RBACSerializerMixin, OModelSerializer):
+    pass
+
+
+class RBACCreateSerializer(RBACSerializerMixin, serializers.ModelSerializer):
+    pass
+
+
+class RBACOCreateSerializer(RBACSerializerMixin, OModelCreateSerializer):
+    pass

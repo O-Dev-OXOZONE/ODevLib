@@ -1,4 +1,3 @@
-from typing import Optional
 from django.apps import apps
 from django.contrib.auth.models import AbstractUser
 from drf_spectacular.types import OpenApiTypes
@@ -10,85 +9,84 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.schemas.generators import EndpointEnumerator
 
+from odevlib.business_logic.rbac import permissions
 from odevlib.errors import codes
 from odevlib.models.errors import Error
-from odevlib.business_logic.rbac import permissions
-from odevlib.models.rbac.role import RBACRole
 from odevlib.serializers.rbac.user_roles import MyRolesAndPermissionsSerializer
 
 
 @extend_schema(
-    summary="Проверить, есть ли у меня запрашиваемое право",
-    description='Возвращает "None" если на данное право нет ни одного режима доступа, '
-    'либо комбинацию из режимов доступа "c", "r", "u" и "d", если соответствующие '
-    "доступы есть (режимы доступа могут идти в произвольном порядке).\n\n"
-    "Имеет 3 режима проверки:\n"
-    "1. Прямая проверка через роли, присвоенные пользователю.\n"
-    "2. Проверка instance-level прав для конкретного инстанса конкретной модели. "
-    "Используется, когда переданы поля `model_name` и `instance_id`.\n"
-    "3. Проверка instance-level прав, используя родительскую сущность. Полезно в "
-    "случаях, когда мы создаем новый инстанс через POST запрос и не можем "
-    "напрямую проверить наши права на создание, так как инстанса для проверки "
-    "в БД еще не существует. Используется, когда переданы поля `parent_model` и "
-    "`parent_id`.",
+    summary="Check if I have the requested permission",
+    description='Returns "None" if there are no access modes for this permission, '
+    'or a combination of access modes "c", "r", "u", and "d" if the corresponding '
+    "accesses exist (access modes can be in any order).\n\n"
+    "Has 3 check modes:\n"
+    "1. Direct check through roles assigned to the user.\n"
+    "2. Check instance-level permissions for a specific instance of a specific model. "
+    "Used when the fields `model_name` and `instance_id` are passed.\n"
+    "3. Check instance-level permissions using the parent entity. Useful in "
+    "cases when we create a new instance through a POST request and cannot "
+    "directly check our permissions for creation, as the instance to check "
+    "does not yet exist in the database. Used when the fields `parent_model` and "
+    "`parent_id` are passed.",
     request=None,
     parameters=[
         OpenApiParameter(
             "permission",
-            description="Обязательный параметр, указывающий на название конкретного права, которое "
-            "клиент хочет проверить. Это может быть целая модель или отдельное поле "
-            "модели.\n\n"
-            "Формат: `appname__modelname[__fieldname]`.",
+            description="Required parameter indicating the name of the specific permission that "
+            "the client wants to check. It can be a whole model or a specific field "
+            "of the model.\n\n"
+            "Format: `appname__modelname[__fieldname]`.",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             required=True,
         ),
         OpenApiParameter(
             "model_name",
-            description="**[Для instance-level RBAC]**\n\n"
-            "Название модели, которую клиент просит использовать для проверки "
-            "instance-level роли.\n\n"
-            "Формат: `appname__modelname`",
+            description="**[For instance-level RBAC]**\n\n"
+            "The name of the model that the client requests to use for checking "
+            "instance-level role.\n\n"
+            "Format: `appname__modelname`",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             required=False,
         ),
         OpenApiParameter(
             "instance_id",
-            description="**[Для instance-level RBAC]**\n\n"
-            "ID инстанса, которую клиент просит использовать для проверки "
-            "instance-level роли. Связан с параметром `model_name`, "
-            "инстанс с этим ID берется именно для модели `model_name`.",
+            description="**[For instance-level RBAC]**\n\n"
+            "The ID of the instance that the client requests to use for checking "
+            "instance-level role. Associated with the `model_name` parameter, "
+            "the instance with this ID is taken specifically for the `model_name` model.",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.INT,
             required=False,
         ),
         OpenApiParameter(
             "parent_model",
-            description="**[Для создания дочерних instance-level RBAC сущностей]**\n\n"
-            "Название модели, которую клиент просит использовать для проверки "
-            "instance-level роли при проверке родительской модели.\n\n"
-            "Это поле используется при проверке прав при создании нового инстанса, "
-            "когда инстанс еще не существует и вызвать проверку для него "
-            "еще нельзя, но создаем эту сущность мы внутри другой RBAC-aware "
-            "сущности, роль внутри которой может давать права на все дочерние "
-            "сущности.\n\n"
-            "Формат: `appname_modelname`\n\n"
-            "Пример: у нас есть пользователь и мы хотим создать под ним новый заказ. "
-            "Доступ к пользователям и заказам управляется RBACом. "
-            "Так как заказ еще не создан, мы не может проверить, есть ли у нас право "
-            "на доступ к созданию нового заказа. Но зато у нас есть право на доступ ко "
-            "всем дочерним сущностям нашего пользователя, и при создании заказа мы "
-            "можем определить наш доступ к созданию исходя из инстанса пользователя.",
+            description="**[For creating child instance-level RBAC entities]**\n\n"
+            "The name of the model that the client requests to use for checking "
+            "instance-level role when checking the parent model.\n\n"
+            "This field is used when checking permissions when creating a new instance, "
+            "when the instance does not yet exist and it is not possible to call the check "
+            "for it, but we create this entity inside another RBAC-aware "
+            "entity, the role inside which can grant permissions to all child "
+            "entities.\n\n"
+            "Format: `appname_modelname`\n\n"
+            "Example: we have a user and we want to create a new order under them. "
+            "Access to users and orders is controlled by RBAC. "
+            "Since the order has not yet been created, we cannot check if we have the right "
+            "to access creating a new order. But we have the right to access all child "
+            "entities of our user, and when creating an order, we "
+            "can determine our access to creation based on the user instance.",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             required=False,
         ),
         OpenApiParameter(
             "parent_id",
-            description="**[Для создания дочерних instance-level RBAC сущностей]**\n\n"
-            "ID инстанса родительской модели, который будет использоваться для "
-            "проверки доступа к новосоздаваемому дочернему инстансу.",
+            description="**[For creating child instance-level RBAC entities]**\n\n"
+            "The ID of the parent model instance that will be used for "
+            "checking access to the newly created child instance.",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.INT,
             required=False,
@@ -98,18 +96,20 @@ from odevlib.serializers.rbac.user_roles import MyRolesAndPermissionsSerializer
 )
 @api_view()
 @permission_classes([IsAuthenticated])
-def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
+def do_i_have_rbac_permission(request: Request) -> Response:
     """
+    Return if the current user has a requested RBAC permission.
+
     Execution logic:
     - If we only have permission_name, we get all global roles and return access mode for a requested permission.
     - If we also have model_name and instance_id, we get all instance-level roles and return access mode for a requested permission.
     - If we also have parent_model and parent_id, we get all instance-level roles for parent_model and return access mode for a requested permission.
     """
-    permission_name: Optional[str] = request.query_params.get("permission", None)
-    model_name: Optional[str] = request.query_params.get("model_name", None)
-    instance_id: Optional[str] = request.query_params.get("instance_id", None)
-    parent_model: Optional[str] = request.query_params.get("parent_model", None)
-    parent_id: Optional[str] = request.query_params.get("parent_id", None)
+    permission_name: str | None = request.query_params.get("permission", None)
+    model_name: str | None = request.query_params.get("model_name", None)
+    instance_id: str | None = request.query_params.get("instance_id", None)
+    parent_model: str | None = request.query_params.get("parent_model", None)
+    parent_id: str | None = request.query_params.get("parent_id", None)
 
     user = request.user
     assert isinstance(user, AbstractUser)
@@ -118,16 +118,16 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
     if permission_name is None:
         return Error(
             error_code=codes.invalid_request_data,
-            eng_description=f'"permission" param was not passed',
-            ui_description=f'Параметр "permission" не был передан',
+            eng_description='"permission" param was not passed',
+            ui_description='Параметр "permission" не был передан',
         ).serialize_response()
 
     if model_name is not None:
         if len(model_name.split("__")) != 2:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f"Expected model_name to contain two parts separated by __",
-                ui_description=f"model_name должен содержать две части, разделенные __",
+                eng_description="Expected model_name to contain two parts separated by __",
+                ui_description="Expected model_name to contain two parts separated by __",
             ).serialize_response()
         try:
             model_type = apps.get_model(model_name.replace("__", "."))
@@ -135,7 +135,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Could not find model "{model_name}"',
-                ui_description=f'Не найдена модель "{model_name}"',
+                ui_description=f'Could not find model "{model_name}"',
             ).serialize_response()
 
     if instance_id is not None:
@@ -145,15 +145,19 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Expected int in instance_id, but got "{instance_id}"',
-                ui_description=f'В instance_id ожидался int, был получен "{instance_id}"',
+                ui_description=f'Expected int in instance_id, but got "{instance_id}"',
             ).serialize_response()
 
     if parent_model is not None:
         if len(parent_model.split("__")) != 2:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f"Expected parent_model to contain two underscores, got {len(parent_model.split('__'))}",
-                ui_description=f"parent_model должен содержать два подчеркивания, получено {len(parent_model.split('__'))}",
+                eng_description=(
+                    f"Expected parent_model to contain two underscores, got {len(parent_model.split('__'))}"
+                ),
+                ui_description=(
+                    f"Expected parent_model to contain two underscores, got {len(parent_model.split('__'))}"
+                ),
             ).serialize_response()
         try:
             parent_model_type = apps.get_model(parent_model.replace("__", "."))
@@ -161,7 +165,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Could not find model "{parent_model}"',
-                ui_description=f'Не найдена модель "{parent_model}"',
+                ui_description=f'Could not find model "{parent_model}"',
             ).serialize_response()
 
     if parent_id is not None:
@@ -171,7 +175,7 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Expected int in parent_id, but got "{instance_id}"',
-                ui_description=f'В parent_id ожидался int, был получен "{instance_id}"',
+                ui_description=f'Expected int in parent_id, but got "{instance_id}"',
             ).serialize_response()
     ### Checks end ###
 
@@ -215,37 +219,34 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
             permission_name.split("__")[0] + "__" + permission_name.split("__")[1],
         )
         if model_value is not None:
-            if value is None:
-                value = model_value
-            else:
-                value = "".join(set([*value, *model_value]))
+            value = model_value if value is None else "".join({*value, *model_value})
 
     return Response(str(value))
 
 
 @extend_schema(
-    summary="Получить список всех RBAC ролей и прав текущего пользователя",
+    summary="Get a list of all RBAC roles and permissions for the current user",
     request=None,
-    description="Возвращает список всех ролей и прав текущего пользователя. "
-    'Если переданы параметры "model_name" и "instance_id", проверяет еще '
-    "и instance-level роли для заданной сущности.",
+    description="Returns a list of all roles and permissions for the current user. "
+    'If "model_name" and "instance_id" parameters are provided, it also checks '
+    "for instance-level roles for the specified entity.",
     parameters=[
         OpenApiParameter(
             "model_name",
-            description="**[Для instance-level RBAC]**\n\n"
-            "Название модели, которую клиент просит использовать для проверки "
-            "instance-level роли.\n\n"
-            "Формат: `appname_modelname`",
+            description="**[For instance-level RBAC]**\n\n"
+            "The name of the model that the client requests to use for checking "
+            "instance-level role.\n\n"
+            "Format: `appname__modelname`",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.STR,
             required=False,
         ),
         OpenApiParameter(
             "instance_id",
-            description="**[Для instance-level RBAC]**\n\n"
-            "ID инстанса, которую клиент просит использовать для проверки "
-            "instance-level роли. Связан с параметром `model_name`, "
-            "инстанс с этим ID берется именно для модели `model_name`.",
+            description="**[For instance-level RBAC]**\n\n"
+            "The ID of the instance that the client requests to use for checking "
+            "instance-level role. Associated with the `model_name` parameter, "
+            "the instance with this ID is specifically taken for the `model_name` model.",
             location=OpenApiParameter.QUERY,
             type=OpenApiTypes.INT,
             required=False,
@@ -254,9 +255,9 @@ def do_i_have_rbac_permission(request: Request, *args, **kwargs) -> Response:
     responses={200: MyRolesAndPermissionsSerializer()},
 )
 @api_view()
-def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
-    model_name: Optional[str] = request.query_params.get("model_name", None)
-    instance_id: Optional[str] = request.query_params.get("instance_id", None)
+def get_my_roles_and_permissions(request: Request) -> Response:
+    model_name: str | None = request.query_params.get("model_name", None)
+    instance_id: str | None = request.query_params.get("instance_id", None)
 
     user = request.user
     assert isinstance(user, AbstractUser)
@@ -266,8 +267,8 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
         if len(model_name.split("__")) != 2:
             return Error(
                 error_code=codes.invalid_request_data,
-                eng_description=f"Expected model_name to contain two parts separated by __",
-                ui_description=f"model_name должен содержать две части, разделенные __",
+                eng_description="Expected model_name to contain two parts separated by __",
+                ui_description="Expected model_name to contain two parts separated by __",
             ).serialize_response()
         try:
             model_type = apps.get_model(model_name.replace("__", "."))
@@ -275,7 +276,7 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Could not find model "{model_name}"',
-                ui_description=f'Не найдена модель "{model_name}"',
+                ui_description=f'Could not find model "{model_name}"',
             ).serialize_response()
 
     if instance_id is not None:
@@ -285,7 +286,7 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
             return Error(
                 error_code=codes.invalid_request_data,
                 eng_description=f'Expected int in instance_id, but got "{instance_id}"',
-                ui_description=f'В instance_id ожидался int, был получен "{instance_id}"',
+                ui_description=f'Expected int in instance_id, but got "{instance_id}"',
             ).serialize_response()
 
     if model_name is not None and instance_id is not None:
@@ -299,10 +300,10 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
         return Response(
             MyRolesAndPermissionsSerializer(
                 {
-                    "roles": map(lambda role: role.name, roles),
+                    "roles": (role.name for role in roles),
                     "permissions": perms,
-                }
-            ).data
+                },
+            ).data,
         )
     else:
         # Return global roles and permissions
@@ -311,10 +312,10 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
         return Response(
             MyRolesAndPermissionsSerializer(
                 {
-                    "roles": map(lambda role: role.name, roles),
+                    "roles": (role.name for role in roles),
                     "permissions": perms,
-                }
-            ).data
+                },
+            ).data,
         )
 
 
@@ -325,7 +326,7 @@ def get_my_roles_and_permissions(request: Request, *args, **kwargs) -> Response:
 )
 @api_view()
 @permission_classes([IsAuthenticated])
-def list_all_rbac_permissions(request: Request, *args, **kwargs) -> Response:
+def list_all_rbac_permissions(request: Request, *args, **kwargs) -> Response:  # noqa: ARG001
     endpoint_enumerator = EndpointEnumerator()
     endpoints = endpoint_enumerator.get_api_endpoints()
 
@@ -339,16 +340,14 @@ def list_all_rbac_permissions(request: Request, *args, **kwargs) -> Response:
 
             model = serializer_class.Meta.model
             # noinspection PyProtectedMember
-            app_name = model._meta.app_label
+            app_name = model._meta.app_label  # noqa: SLF001
             # noinspection PyProtectedMember
-            model_name = model._meta.model_name
-            fields = [field for field in serializer_class.Meta.fields] + [
-                field for field in create_serializer_class.Meta.fields
-            ]
+            model_name = model._meta.model_name  # noqa: SLF001
+            fields = list(serializer_class.Meta.fields) + list(create_serializer_class.Meta.fields)
 
             results.append(f"{app_name}__{model_name}")
             results.extend([f"{app_name}__{model_name}__{field_name}" for field_name in fields])
 
-    results = sorted(list(set(results)))
+    results = sorted(set(results))
 
     return Response(results)

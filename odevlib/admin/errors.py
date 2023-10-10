@@ -1,8 +1,8 @@
+import contextlib
+
 from django.contrib import admin
 
 from odevlib.models.errors import Error
 
-try:
+with contextlib.suppress(admin.sites.AlreadyRegistered):
     admin.site.register(Error, admin.ModelAdmin)
-except admin.sites.AlreadyRegistered:
-    pass

@@ -1,9 +1,9 @@
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser, User
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models import Manager
-from odevlib.fields.rbac_model import RBACModelField
 
+from odevlib.fields.rbac_model import RBACModelField
 from odevlib.models import OModel, RBACRole
 
 
@@ -22,7 +22,7 @@ class InstanceRoleAssignmentManager(Manager):
             ).values_list(
                 "role",
                 flat=True,
-            )
+            ),
         )
 
 
@@ -42,5 +42,5 @@ class InstanceRoleAssignment(OModel):
 
     objects: InstanceRoleAssignmentManager = InstanceRoleAssignmentManager()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.username} — {self.model}[{self.instance_id}] — {self.role.name}"

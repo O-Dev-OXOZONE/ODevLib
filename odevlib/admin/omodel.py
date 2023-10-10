@@ -10,7 +10,7 @@ T = TypeVar("T", bound=OModel)
 
 
 class OModelAdmin(admin.ModelAdmin, Generic[T]):
-    readonly_fields = ["created_by", "updated_by"]
+    readonly_fields = ("created_by", "updated_by")
 
     @override
     def save_model(self, request: HttpRequest, obj: T, _form: Any, _change: bool) -> None:

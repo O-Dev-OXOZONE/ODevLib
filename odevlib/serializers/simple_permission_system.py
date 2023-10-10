@@ -1,6 +1,5 @@
-
-
 from rest_framework import serializers
+
 from odevlib.models.simple_permission_system import SimplePermissionSystemPermission
 
 
@@ -17,6 +16,7 @@ class SimplePermissionSystemPermissionSerializer(serializers.ModelSerializer):
             "can_delete",
         )
 
+
 class SimplePermissionSystemPermissionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = SimplePermissionSystemPermission
@@ -28,5 +28,3 @@ class SimplePermissionSystemPermissionCreateSerializer(serializers.ModelSerializ
             "can_update",
             "can_delete",
         )
-
-

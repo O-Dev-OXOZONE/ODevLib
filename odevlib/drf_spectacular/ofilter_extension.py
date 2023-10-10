@@ -1,5 +1,4 @@
 from django.db import models
-
 from drf_spectacular.drainage import add_trace_message, get_override, has_override, warn
 from drf_spectacular.extensions import OpenApiFilterExtension
 from drf_spectacular.plumbing import (
@@ -59,12 +58,14 @@ class OFilterExtension(OpenApiFilterExtension):
             return []
 
         filterset_class = self.target.get_filterset_class(
-            auto_schema.view, model.objects.none()
+            auto_schema.view,
+            model.objects.none(),
         )
         if not filterset_class:
             return []
 
         from odevlib.filters.backends.ofilter_backend import OFilterBackend
+
         if not isinstance(filterset_class, OFilterBackend):
             return []
 
@@ -72,12 +73,21 @@ class OFilterExtension(OpenApiFilterExtension):
         with add_trace_message(filterset_class.__name__):
             for field_name, filter_field in filterset_class.base_filters.items():
                 result += self.resolve_filter_field(
-                    auto_schema, model, filterset_class, field_name, filter_field
+                    auto_schema,
+                    model,
+                    filterset_class,
+                    field_name,
+                    filter_field,
                 )
         return result
 
     def resolve_filter_field(
-        self, auto_schema, model, filterset_class, field_name, filter_field
+        self,
+        auto_schema,
+        model,
+        filterset_class,
+        field_name,
+        filter_field,
     ):
         from django_filters import filters  # type: ignore
 
@@ -104,7 +114,8 @@ class OFilterExtension(OpenApiFilterExtension):
         if has_override(filter_field, "field") or has_override(filter_method, "field"):
             schema_from_override = True
             annotation = get_override(filter_field, "field") or get_override(
-                filter_method, "field"
+                filter_method,
+                "field",
             )
             if is_basic_type(annotation):
                 schema = build_basic_type(annotation)
@@ -122,12 +133,13 @@ class OFilterExtension(OpenApiFilterExtension):
                     schema = build_basic_type(unambiguous_mapping[cls])
                     break
         elif isinstance(
-            filter_field, (filters.NumberFilter, filters.NumericRangeFilter)
+            filter_field,
+            filters.NumberFilter | filters.NumericRangeFilter,
         ):
             # NumberField is underspecified by itself. try to find the
             # type that makes the most sense or default to generic NUMBER
             model_field = self._get_model_field(filter_field, model)
-            if isinstance(model_field, (models.IntegerField, models.AutoField)):
+            if isinstance(model_field, models.IntegerField | models.AutoField):
                 schema = build_basic_type(OpenApiTypes.INT)
             elif isinstance(model_field, models.FloatField):
                 schema = build_basic_type(OpenApiTypes.FLOAT)
@@ -136,11 +148,14 @@ class OFilterExtension(OpenApiFilterExtension):
             else:
                 schema = build_basic_type(OpenApiTypes.NUMBER)
         elif isinstance(
-            filter_field, (filters.ChoiceFilter, filters.MultipleChoiceFilter)
+            filter_field,
+            filters.ChoiceFilter | filters.MultipleChoiceFilter,
         ):
             try:
                 schema = self._get_schema_from_model_field(
-                    auto_schema, filter_field, model
+                    auto_schema,
+                    filter_field,
+                    model,
                 )
             except Exception:
                 if filter_choices and is_basic_type(type(filter_choices[0])):
@@ -149,7 +164,7 @@ class OFilterExtension(OpenApiFilterExtension):
                 else:
                     warn(
                         f"Unable to guess choice types from values, filter method's type hint "
-                        f'or find "{field_name}" in model. Defaulting to string.'
+                        f'or find "{field_name}" in model. Defaulting to string.',
                     )
                     schema = build_basic_type(OpenApiTypes.STR)
         else:
@@ -157,12 +172,14 @@ class OFilterExtension(OpenApiFilterExtension):
             # and emit a warning if we were unsuccessful.
             try:
                 schema = self._get_schema_from_model_field(
-                    auto_schema, filter_field, model
+                    auto_schema,
+                    filter_field,
+                    model,
                 )
             except Exception as exc:  # pragma: no cover
                 warn(
                     f"Exception raised while trying resolve model field for django-filter "
-                    f'field "{field_name}". Defaulting to string (Exception: {exc})'
+                    f'field "{field_name}". Defaulting to string (Exception: {exc})',
                 )
                 schema = build_basic_type(OpenApiTypes.STR)
 
@@ -197,16 +214,14 @@ class OFilterExtension(OpenApiFilterExtension):
             explode = True
             style = "form"
         elif isinstance(
-            filter_field, (filters.RangeFilter, filters.NumericRangeFilter)
+            filter_field,
+            filters.RangeFilter | filters.NumericRangeFilter,
         ):
             try:
                 suffixes = filter_field.field_class.widget.suffixes
             except AttributeError:
                 suffixes = ["min", "max"]
-            field_names = [
-                f"{field_name}_{suffix}" if suffix else field_name
-                for suffix in suffixes
-            ]
+            field_names = [f"{field_name}_{suffix}" if suffix else field_name for suffix in suffixes]
             explode = None
             style = None
         else:
@@ -284,7 +299,7 @@ class OFilterExtension(OpenApiFilterExtension):
             from django.contrib.gis.db.models import GeometryField
             from rest_framework_gis.filters import GeometryFilter  # type: ignore
 
-            return isinstance(field, (GeometryField, GeometryFilter))
+            return isinstance(field, GeometryField | GeometryFilter)
         except:  # noqa
             cls._has_gis = False  # type: ignore
             return False

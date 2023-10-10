@@ -21,7 +21,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-3k$ofk5&4&$7zmj71^&s_g6(lk(p!he4i+cz6yd*m3egc*wm^i"
+# But since this is a test app that will never be deployed, we keep it here for simplicity.
+SECRET_KEY = "django-insecure-3k$ofk5&4&$7zmj71^&s_g6(lk(p!he4i+cz6yd*m3egc*wm^i"  # noqa: S105
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -81,14 +82,13 @@ WSGI_APPLICATION = "odevlib_example.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        # "ENGINE": "timescale.db.backends.postgresql",
+        "ENGINE": "timescale.db.backends.postgresql",
         "NAME": os.environ.get("ODEVLIB_DB_NAME", "odevlib_example"),
         "USER": os.environ.get("ODEVLIB_DB_USER", "odevlib_example"),
         "PASSWORD": os.environ.get("ODEVLIB_DB_PASSWORD", "odevlib_example"),
         "HOST": os.environ.get("ODEVLIB_DB_HOST", "localhost"),
         "PORT": os.environ.get("ODEVLIB_DB_PORT", "5432"),
-    }
+    },
 }
 
 

@@ -4,7 +4,7 @@ Contains various functional programming utilities.
 
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 """ Generic type variable for use in type annotations. """
@@ -18,7 +18,7 @@ def flatten(list_of_lists: Iterable[Iterable[T]]) -> list[T]:
     Extract nested lists of elements into a single list of elements.
 
     Example:
-
+    -------
     .. code-block:: python
 
        flatten([[1, 2], [3, 4]]) == [1, 2, 3, 4]
@@ -26,12 +26,12 @@ def flatten(list_of_lists: Iterable[Iterable[T]]) -> list[T]:
     return [element for sublist in list_of_lists for element in sublist]
 
 
-def first(iterable: Iterable[T]) -> Optional[T]:
+def first(iterable: Iterable[T]) -> T | None:
     """
-    Returns the first element of an iterable.
+    Return the first element of an iterable.
 
     Example:
-
+    -------
     .. code-block:: python
 
        first([1, 2, 3]) == 1
@@ -54,7 +54,7 @@ def filter_non_null(iterable: Iterable[T | None]) -> Iterable[T]:
     Filter out null values from an iterable.
 
     Example:
-
+    -------
     .. code-block:: python
 
        filter_non_null([1, None, 2, None, 3]) == [1, 2, 3]
@@ -81,7 +81,7 @@ def group_by(it: Iterable[T], field_extractor: Callable[[T], V]) -> Iterable[tup
 
 def until(value: T, it: Iterable[T]) -> Iterable[T]:
     """
-    Returns all values of an iterable until the specified value is reached.
+    Return all values of an iterable until the specified value is reached.
     May be used to only get new values when overlapping getters are used.
 
     @param value: value to stop at
@@ -96,7 +96,7 @@ def until(value: T, it: Iterable[T]) -> Iterable[T]:
 
 def until_f(value: T, it: Iterable[V], f: Callable[[T, V], bool]) -> Iterable[V]:
     """
-    Returns all values of an iterable until the specified value is reached.
+    Return all values of an iterable until the specified value is reached.
     May be used to only get new values when overlapping getters are used.
     Uses f instead of "==" to compare values. As soon as True is obtained, aborts the iterable.
 

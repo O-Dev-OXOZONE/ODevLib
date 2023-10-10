@@ -1,12 +1,13 @@
-from typing import Callable, List, Tuple, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
-O = TypeVar('O')
+O = TypeVar('O')  # noqa: E741
 N = TypeVar('N')
 
 
-def diff(old_list: List[O], new_list: List[N], comparator: Callable[[O, N], bool]) -> Tuple[List[O], List[N]]:
+def diff(old_list: list[O], new_list: list[N], comparator: Callable[[O, N], bool]) -> tuple[list[O], list[N]]:
     """
-    Compares old and new element lists and tells which elements to create and which to delete to get new list from the
+    Compare old and new element lists and tells which elements to create and which to delete to get new list from the
     old one. For elements to delete the function returns elements from the old_list, for elements to create — elements
     from the new_list.
 

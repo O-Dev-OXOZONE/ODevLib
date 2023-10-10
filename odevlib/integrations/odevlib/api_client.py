@@ -10,8 +10,8 @@ from typing import Any
 
 import requests
 from requests.exceptions import JSONDecodeError
-from odevlib.errors import codes
 
+from odevlib.errors import codes
 from odevlib.models.errors import Error
 
 
@@ -23,11 +23,9 @@ class ODLAPIClient:
         self.base_url = base_url
         self.token = token
 
-    def apply_authentication(
-        self, headers: dict, query_params: dict
-    ) -> tuple[dict, dict]:
+    def apply_authentication(self, headers: dict, query_params: dict) -> tuple[dict, dict]:
         """
-        Allows to customize how authentication is applied to the request.
+        Allow to customize how authentication is applied to the request.
         Authorization can be either in headers or in query parameters.
         """
         headers.update({"Authorization": f"Token {self.token}"})
@@ -38,8 +36,8 @@ class ODLAPIClient:
         method: str,
         url: str,
         body: Any = None,
-        query_params: dict = {},
-        headers: dict[str, Any] = {},
+        query_params: dict | None = None,
+        headers: dict[str, Any] | None = None,
     ) -> dict | Error:
         """
         Send a request to external API.
@@ -51,6 +49,10 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
+        if headers is None:
+            headers = {}
         headers, query_params = self.apply_authentication(headers, query_params)
 
         response = requests.request(
@@ -70,7 +72,7 @@ class ODLAPIClient:
                     eng_description=json["eng_description"],
                     ui_description=json["ui_description"],
                 )
-        except JSONDecodeError as e:
+        except JSONDecodeError:
             return Error(
                 error_code=codes.unhandled_error,
                 eng_description=f"Couldn't parse JSON when sending request to external API. Status code: {response.status_code}.",
@@ -82,7 +84,7 @@ class ODLAPIClient:
     def get(
         self,
         url: str,
-        query_params: dict = {},
+        query_params: dict | None = None,
     ) -> dict | Error:
         """
         Send GET request to external API.
@@ -92,13 +94,15 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
         return self.send_request("GET", url, query_params=query_params)
 
     def post(
         self,
         url: str,
         body: Any,
-        query_params: dict = {},
+        query_params: dict | None = None,
     ) -> dict | Error:
         """
         Send POST request to external API.
@@ -109,13 +113,15 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
         return self.send_request("POST", url, body, query_params=query_params)
 
     def put(
         self,
         url: str,
         body: Any,
-        query_params: dict = {},
+        query_params: dict | None = None,
     ) -> dict | Error:
         """
         Send PUT request to external API.
@@ -126,13 +132,15 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
         return self.send_request("PUT", url, body, query_params=query_params)
 
     def patch(
         self,
         url: str,
         body: Any,
-        query_params: dict = {},
+        query_params: dict | None = None,
     ) -> dict | Error:
         """
         Send PATCH request to external API.
@@ -143,12 +151,14 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
         return self.send_request("PATCH", url, body, query_params=query_params)
 
     def delete(
         self,
         url: str,
-        query_params: dict = {},
+        query_params: dict | None = None,
     ) -> dict | Error:
         """
         Send DELETE request to external API.
@@ -158,4 +168,6 @@ class ODLAPIClient:
         :return: Response from external API.
         """
 
+        if query_params is None:
+            query_params = {}
         return self.send_request("DELETE", url, query_params=query_params)

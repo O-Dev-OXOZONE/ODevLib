@@ -1,6 +1,3 @@
-
-
-from odevlib.serializers import OModelSerializer, OModelCreateSerializer
 from rest_framework import serializers
 
 
