@@ -1,3 +1,9 @@
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.db.models import Q, QuerySet
+
+from odevlib.models.errors import Error
+from odevlib.models.rbac.instance_role_assignment import InstanceRoleAssignment
+from odevlib.models.rbac.role_assignment import RoleAssignment
 from odevlib.views.mixins import OCursorPaginatedListMixin
 from odevlib.views.oviewset import OModelViewSet, OViewSet
 from test_app.models import ExampleOModel, ExampleRBACChild, ExampleRBACParent
@@ -29,9 +35,58 @@ class ExampleRBACParentViewSet(OModelViewSet[ExampleRBACParent]):
     create_serializer_class = ExampleRBACParentCreateSerializer
     use_rbac = True
 
+    def get_queryset(self) -> QuerySet[ExampleRBACParent] | Error:
+        assert isinstance(self.request.user, AbstractBaseUser)
+        qs = super().get_queryset()
+
+        if isinstance(qs, Error):
+            return qs
+
+        is_globally_available = RoleAssignment.objects.filter(
+            user=self.request.user,
+            role__permissions__has_key="test_app__examplerbacparent",
+        ).exists()
+
+        if is_globally_available:
+            return qs
+
+        available_ids = InstanceRoleAssignment.objects.filter(
+            user=self.request.user,
+            model="test_app__examplerbacparent",
+        ).values_list("instance_id", flat=True)
+
+        return qs.filter(id__in=available_ids)
+
 
 class ExampleRBACChildViewSet(OModelViewSet[ExampleRBACChild]):
     queryset = ExampleRBACChild.objects.all()
     serializer_class = ExampleRBACChildSerializer
     create_serializer_class = ExampleRBACChildCreateSerializer
     use_rbac = True
+
+    def get_queryset(self) -> QuerySet[ExampleRBACChild] | Error:
+        assert isinstance(self.request.user, AbstractBaseUser)
+        qs = super().get_queryset()
+
+        if isinstance(qs, Error):
+            return qs
+
+        is_globally_available = RoleAssignment.objects.filter(
+            user=self.request.user,
+            role__permissions__has_key="test_app__examplerbacchild",
+        ).exists()
+
+        if is_globally_available:
+            return qs
+
+        available_ids = InstanceRoleAssignment.objects.filter(
+            user=self.request.user,
+            model="test_app__examplerbacchild",
+        ).values_list("instance_id", flat=True)
+
+        available_parent_ids = InstanceRoleAssignment.objects.filter(
+            user=self.request.user,
+            model="test_app__examplerbacparent",
+        ).values_list("instance_id", flat=True)
+
+        return qs.filter(Q(id__in=available_ids) | Q(parent_id__in=available_parent_ids))

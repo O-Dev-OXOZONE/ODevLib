@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth.models import AbstractUser, User
 from rest_framework.test import APIClient
+from odevlib.models.rbac.instance_role_assignment import InstanceRoleAssignment
 from odevlib.models.rbac.role import RBACRole
 from odevlib.models.rbac.role_assignment import RoleAssignment
 
@@ -111,6 +112,7 @@ def global_role_crud_rbac_setup(
         ui_name="Global role",
         permissions={
             "test_app__examplerbacparent": "crud",
+            "test_app__examplerbacchild": "crud",
         },
     )
     role.save(user=system_user)
@@ -118,5 +120,34 @@ def global_role_crud_rbac_setup(
     assignment = RoleAssignment(
         user=user,
         role=role,
+    )
+    assignment.save(user=system_user)
+
+
+@pytest.fixture()
+def instance_role_crud_rbac_setup(
+    user: User,
+    system_user: User,
+    rbac_models_setup: RBACModelsSetup,
+) -> None:
+    """
+    User has global access to all parents.
+    """
+
+    role = RBACRole(
+        name="test__instance_role",
+        ui_name="Instance-level role",
+        permissions={
+            "test_app__examplerbacparent": "crud",
+            "test_app__examplerbacchild": "crud",
+        },
+    )
+    role.save(user=system_user)
+
+    assignment = InstanceRoleAssignment(
+        user=user,
+        role=role,
+        model="test_app__examplerbacparent",
+        instance_id=rbac_models_setup.parent1.pk,
     )
     assignment.save(user=system_user)

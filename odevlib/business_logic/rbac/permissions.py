@@ -1,6 +1,7 @@
 import itertools
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
+import logging
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -143,6 +144,8 @@ def get_complete_instance_rbac_roles(
         + [get_instance_rbac_roles(user, instance.__class__, instance.pk) for instance in all_models],
     )
 
+    logging.warning(f"Retrieved roles: {roles}")
+
     def recurse(role: RBACRole) -> Iterable[RBACRole]:
         yield role
         for child in RBACRole.objects.children_of(role):
@@ -207,7 +210,7 @@ def has_access_to_model_field(
     Available access mode characters: r (read), w (write), d (delete).
     """
 
-    full_field_name: str = f"{model._meta.app_label}__{model._meta.model_name}__{field_name}"
+    full_field_name: str = f"{model._meta.app_label}__{model._meta.model_name}__{field_name}"  # noqa: SLF001
     # Find the permission for requested model
     for permission_name, access_mode in permissions.items():
         # Check if permission name matches and all requested access modes are present

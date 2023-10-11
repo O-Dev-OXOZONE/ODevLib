@@ -1,4 +1,5 @@
 import copy
+import logging
 import traceback
 import typing
 from collections import OrderedDict
@@ -14,8 +15,11 @@ from rest_framework.utils import model_meta
 
 from odevlib.business_logic.rbac.permissions import (
     get_allowed_model_fields,
+    get_complete_instance_rbac_roles,
+    get_complete_rbac_roles,
     get_direct_rbac_roles,
     get_instance_rbac_roles,
+    has_access_to_entire_model,
     has_access_to_model_field,
     merge_permissions,
 )
@@ -79,6 +83,129 @@ class RBACSerializerMixin(_Base):
             raise APIException(msg)
         return pk
 
+    def filter_fields(self, fields: OrderedDict[str, Field]) -> OrderedDict[str, Field]:
+        user: AbstractUser | None = get_user()
+        if user is None:
+            # This should never happen, as even unauthorized users have AnonymousUser instance.
+            msg = f"Couldn't obtain user in {self.__class__.__name__}"
+            raise APIException(msg)
+
+        # We require context, as it contains action and we can't get fields without knowing
+        # what are we getting fields for.
+        if self.context is None or "action" not in self.context:
+            Error(
+                error_code=codes.internal_server_error,
+                eng_description="Action was not passed to RBACSerializer .get_fields()",
+                ui_description="Action was not passed to RBACSerializer .get_fields()",
+            ).save()
+            return fields
+
+        # Give full access to all fields to superusers
+        if user.is_superuser:
+            return fields
+
+        model: type[models.Model] = self.Meta.model
+        model_name = f"{model._meta.app_label}__{model._meta.model_name}"  # noqa: SLF001
+
+        mode: str = action_to_mode_mapping[self.context["action"]]
+
+        if self.instance is None:
+            # Prefetching is using this serializer, so we don't have a particular instance.
+            instance = None
+        elif self.context["action"] == "create":
+            # In case of creation, we don't have an instance yet.
+            instance = None
+        elif self.context["action"] == "list":
+            # In case of list, we have a list of instances, so we pick the first one and base our
+            # field selection only on the first instance.
+            instance = self.instance[0]
+        else:
+            # Update and retrieve actions have a single instance, use it.
+            instance = self.instance
+
+        # Global permissions are used in cases when we do not have access to the instance.
+        global_permissions = merge_permissions(get_complete_rbac_roles(user))
+
+        # Short-circuit if we have access to the entire model globally. No further checks are needed.
+        if has_access_to_entire_model(global_permissions, model, mode):
+            return fields
+
+        globally_available_fields = OrderedDict(
+            [
+                (field_name, field)
+                for field_name, field in fields.items()
+                if field_name in always_available_fields
+                or has_access_to_model_field(global_permissions, model, field_name, mode)
+            ],
+        )
+
+        # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
+        has_inheritance = issubclass(model, RBACHierarchyModelMixin)
+
+        logging.warning(f"model: {model}")
+        logging.warning(f"has_inheritance: {has_inheritance}")
+        logging.warning(f"instance: {instance}")
+        logging.warning(f"instance.pk: {instance.pk if instance is not None else None}")
+
+        # If we do not have an instance yet, use parent model to get user roles.
+        if instance is None:
+            if not has_inheritance:
+                logging.warning("Has no inheritance :(")
+                # If we don't even have a parent, return permissions based on global roles only.
+                return globally_available_fields
+
+            # We have a parent, use it.
+            roles = get_direct_rbac_roles(user)
+            assert issubclass(model, RBACHierarchyModelMixin)
+            parent_model = self.Meta.model.get_rbac_parent_model()
+            assert issubclass(parent_model, models.Model)
+            # TODO: what to do if we do not have parent field and use query parameter instead?
+            parent_field_name = parent_model.get_rbac_parent_field_name()
+            assert isinstance(parent_field_name, str)
+            parent_pk = self.data.get(parent_field_name, None)
+            if parent_pk is None:
+                # If we don't have parent pk, fall back to global permissions.
+                return globally_available_fields
+            instance_level_parent_permissions = merge_permissions(
+                get_complete_instance_rbac_roles(user, parent_model, parent_pk),
+            )
+
+            allowed_fields = get_allowed_model_fields(
+                permissions=instance_level_parent_permissions,
+                model=model_name,
+                mode=mode,
+            )
+            return OrderedDict(
+                [
+                    (field_name, field)
+                    for field_name, field in fields.items()
+                    if field_name in always_available_fields or field_name in allowed_fields
+                ],
+            )
+
+        # roles = get_direct_rbac_roles(user)
+        roles = get_complete_instance_rbac_roles(user, model, instance.pk)
+        if isinstance(roles, Error):
+            return fields
+
+        permissions = merge_permissions(roles)
+
+        if model_name in permissions:
+            return fields
+
+        allowed_fields = get_allowed_model_fields(
+            permissions=permissions,
+            model=model_name,
+            mode=mode,
+        )
+        return OrderedDict(
+            [
+                (field_name, field)
+                for field_name, field in fields.items()
+                if field_name in always_available_fields or field_name in allowed_fields
+            ],
+        )
+
     def get_fields(self) -> dict[str, Field]:
         """
         Return the dict of field names -> field instances that should be
@@ -99,8 +226,6 @@ class RBACSerializerMixin(_Base):
         declared_fields: OrderedDict[str, Field] = copy.deepcopy(self._declared_fields)
         model: type[models.Model] = self.Meta.model
         depth = getattr(self.Meta, "depth", 0)
-
-        model_name = f"{self.Meta.model._meta.app_label}__{self.Meta.model._meta.model_name}"
 
         assert isinstance(depth, int), "'depth' must be an integer."
         if depth is not None:
@@ -146,107 +271,7 @@ class RBACSerializerMixin(_Base):
         # Add in any hidden fields.
         fields.update(hidden_fields)
 
-        user: AbstractUser | None = get_user()
-        if user is None:
-            # This should never happen, as even unauthorized users have AnonymousUser instance.
-            raise APIException(f"Couldn't obtain user in {self.__class__.__name__}")
-
-        # We require context, as it contains action and we can't get fields without knowing
-        # what are we getting fields for.
-        if self.context is None or "action" not in self.context:
-            Error(
-                error_code=codes.internal_server_error,
-                eng_description="Action was not passed to RBACSerializer .get_fields()",
-                ui_description="Action was not passed to RBACSerializer .get_fields()",
-            ).save()
-            return fields
-
-        # Give full access to all fields to superusers
-        if user.is_superuser:
-            return fields
-
-        mode: str = action_to_mode_mapping[self.context["action"]]
-
-        if self.instance is None:
-            # Prefetching is using this serializer, so we don't have a particular instance.
-            instance = None
-        else:
-            if self.context["action"] == "list":
-                instance = self.instance[0]
-            elif self.context["action"] == "create":
-                instance = None
-            else:
-                instance = self.instance
-
-        # Global permissions are used in cases when we do not have access to the instance.
-        global_permissions = merge_permissions(get_direct_rbac_roles(user))
-        globally_available_fields = OrderedDict(
-            [
-                (field_name, field)
-                for field_name, field in fields.items()
-                if field_name in always_available_fields
-                or has_access_to_model_field(global_permissions, model, field_name, mode)
-            ],
-        )
-
-        # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
-        has_inheritance = isinstance(self.Meta.model, RBACHierarchyModelMixin)
-
-        # If we do not have an instance yet, use parent model to get user roles.
-        if instance is None:
-            if not has_inheritance:
-                # If we don't even have a parent, return permissions based on global roles only.
-                return globally_available_fields
-            else:
-                # We have a parent, use it.
-                roles = get_direct_rbac_roles(user)
-                assert isinstance(self.Meta.model, RBACHierarchyModelMixin)
-                parent_model = self.Meta.model.get_rbac_parent_model()
-                assert isinstance(parent_model, models.Model)
-                parent_model_name = f"{parent_model._meta.app_label}__{parent_model._meta.model_name}"
-                # TODO: what to do if we do not have parent field and use query parameter instead?
-                parent_field_name = parent_model.get_rbac_parent_field_name()
-                assert isinstance(parent_field_name, str)
-                parent_pk = self.data.get(parent_field_name, None)
-                if parent_pk is None:
-                    # If we don't have parent pk, fall back to global permissions.
-                    return globally_available_fields
-                instance_level_parent_permissions = merge_permissions(
-                    get_instance_rbac_roles(user, parent_model, parent_pk),
-                )
-
-                allowed_fields = get_allowed_model_fields(
-                    permissions=instance_level_parent_permissions,
-                    model=model_name,
-                    mode=mode,
-                )
-                return OrderedDict(
-                    [
-                        (field_name, field)
-                        for field_name, field in fields.items()
-                        if field_name in always_available_fields or field_name in allowed_fields
-                    ],
-                )
-        else:
-            roles = get_direct_rbac_roles(user)
-
-        permissions = merge_permissions(roles)
-
-        if model_name in permissions:
-            return fields
-
-        allowed_fields = get_allowed_model_fields(
-            permissions=permissions,
-            model=model_name,
-            mode=mode,
-        )
-        return OrderedDict(
-            [
-                (field_name, field)
-                for field_name, field in fields.items()
-                if field_name in always_available_fields or field_name in allowed_fields
-            ],
-        )
+        return self.filter_fields(fields)
 
 
 class RBACCreateSerializerMixin(_Base):
