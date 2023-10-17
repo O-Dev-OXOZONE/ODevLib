@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Generic, TypeVar, Union
 
 from django.db import models
 from django.db.models import ProtectedError, QuerySet
+from django_stubs_ext import QuerySetAny
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
@@ -194,6 +195,12 @@ class OCursorPaginatedListMixin(Generic[M]):
         if isinstance(queryset, Error):
             return queryset.serialize_response()
 
+        if hasattr(self, "filter_backends"):
+            for backend in list(self.filter_backends):
+                queryset = backend().filter_queryset(request, queryset, self)
+
+        assert isinstance(queryset, QuerySetAny)
+
         queryset = queryset.order_by("pk")
         result = paginate_queryset(queryset, first_id, last_id, count)
         if isinstance(result, Error):
@@ -202,9 +209,6 @@ class OCursorPaginatedListMixin(Generic[M]):
         queryset, available_count, filtered_count = result
 
         queryset = prefetch(queryset, self.serializer_class, context=context)
-        if hasattr(self, "filter_backends"):
-            for backend in list(self.filter_backends):
-                queryset = backend().filter_queryset(request, queryset, self)
 
         if isinstance(queryset, Error):
             return queryset.serialize_response()

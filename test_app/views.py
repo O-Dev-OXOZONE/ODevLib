@@ -1,5 +1,6 @@
 from django.contrib.auth.base_user import AbstractBaseUser
 from django.db.models import Q, QuerySet
+from django_filters.rest_framework import DjangoFilterBackend
 
 from odevlib.models.errors import Error
 from odevlib.models.rbac.instance_role_assignment import InstanceRoleAssignment
@@ -90,3 +91,10 @@ class ExampleRBACChildViewSet(OModelViewSet[ExampleRBACChild]):
         ).values_list("instance_id", flat=True)
 
         return qs.filter(Q(id__in=available_ids) | Q(parent_id__in=available_parent_ids))
+
+
+class ExampleOModelFilteredViewSet(OViewSet, OCursorPaginatedListMixin):
+    queryset = ExampleOModel.objects.all()
+    serializer_class = ExampleOModelSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ("test_field",)

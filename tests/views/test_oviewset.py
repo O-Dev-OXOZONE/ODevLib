@@ -238,3 +238,15 @@ def test_example_omodel_list_paginated_with_both_first_id_and_last_id(
         "eng_description": "Can't use both first_id and last_id. Please specify only one argument.",
         "ui_description": "Can't use both first_id and last_id. Please specify only one argument.",
     }
+
+
+@pytest.mark.django_db()
+def test_example_omodel_list_paginated_with_filterset(
+    authorized_api_client: APIClient,
+    populated_example_omodel: list[ExampleOModel],
+) -> None:
+    response = authorized_api_client.get("/test_app/paginated_filterset_example_omodel/?count=10&test_field=test%201")
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.json()) == 1
+    assert "x-odevlib-has-more" in response.headers
+    assert response.headers["x-odevlib-has-more"] == "false"

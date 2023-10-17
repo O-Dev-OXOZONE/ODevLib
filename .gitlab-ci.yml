@@ -3,16 +3,34 @@ image: atnartur/docker:latest
 stages:
   - test
   - build
-  - deploy
+  # - deploy
 
 Test:
   stage: test
+  tags:
+    - dind
+  services:
+    - docker:dind
+  variables:
+    POSTGRES_USER: 'pear2pay'
+    POSTGRES_PASSWORD: ''
+    POSTGRES_DB: 'test_pear2pay'
+    POSTGRES_HOST_AUTH_METHOD: trust
+    CELERY_BROKER_URL: 'redis://redis:6379/0'
+
+    DOCKER_HOST: 'tcp://docker:2376'
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_TLS_CERTDIR: '/certs'
+    DOCKER_CERT_PATH: '$DOCKER_TLS_CERTDIR/client'
+    DOCKER_DRIVER: overlay2
   script:
     - docker build -t odevlib-test -f ci/Dockerfile.test .
     - docker run --rm odevlib-test
 
 Build docs:
   stage: build
+  tags:
+    - docker
   variables:
     IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
   script:
@@ -24,13 +42,13 @@ Build docs:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
 
-Deploy docs:
-  stage: deploy
-  needs:
-    - Build docs
-  variables:
-    IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
-  script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker-compose -f ci/docker-compose.docs.yml pull
-    - docker-compose -f ci/docker-compose.docs.yml up -d
+# Deploy docs:
+#   stage: deploy
+#   needs:
+#     - Build docs
+#   variables:
+#     IMAGE_NAME: "$CI_REGISTRY_IMAGE/docs"
+#   script:
+#     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+#     - docker-compose -f ci/docker-compose.docs.yml pull
+#     - docker-compose -f ci/docker-compose.docs.yml up -d
