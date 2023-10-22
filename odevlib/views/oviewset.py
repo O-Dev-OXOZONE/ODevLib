@@ -61,6 +61,15 @@ class OViewSetProtocol(Protocol, Generic[T]):
     def get_object(self) -> T | Error:
         ...
 
+    def perform_create(self, serializer: serializers.ModelSerializer[T]) -> T | Error:
+        ...
+
+    def perform_update(self, serializer: serializers.ModelSerializer[T]) -> T | Error:
+        ...
+
+    def perform_destroy(self, instance: T) -> None:
+        ...
+
 
 class OViewSet(ViewSetMixin, APIView, Generic[T]):
     """

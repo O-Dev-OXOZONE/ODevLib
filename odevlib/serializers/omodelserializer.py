@@ -38,9 +38,12 @@ class OModelCreateSerializer(ModelSerializer):
             for field, errors in self.Meta.custom_validation_errors.items():  # ability to rewrite default errors
                 for err_type, msg in errors.items(): self.fields[field].error_messages[err_type] = msg
 
+    def get_additional_kwargs(self):
+        return self.context.get('additional_kwargs', dict())
+
     def create(self, validated_data):
         save_kwargs = {}
-        additional_kwargs = self.context.get('additional_kwargs', dict())
+        additional_kwargs = self.get_additional_kwargs()
         for key, value in additional_kwargs.items():
             save_kwargs[key] = value
         save_kwargs['user'] = self.context['user']
@@ -111,7 +114,7 @@ class OModelCreateSerializer(ModelSerializer):
 
     def update(self, instance: Model, validated_data):
         save_kwargs = {}
-        for key, value in self.context.get('additional_kwargs', dict()).items():
+        for key, value in self.get_additional_kwargs().items():
             save_kwargs[key] = value
         save_kwargs['user'] = self.context['user']
 
