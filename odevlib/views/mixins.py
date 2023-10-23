@@ -294,7 +294,7 @@ class OUpdateMixin(Generic[M]):
             serializer = self.create_serializer_class(instance, data=request.data, partial=partial, context=context)
 
         serializer.is_valid(raise_exception=True)
-        instance = self.perform_update(serializer)  # type: ignore[attr-defined]
+        instance = self.perform_update(serializer)
         if isinstance(instance, Error):
             return instance.serialize_response()
 
