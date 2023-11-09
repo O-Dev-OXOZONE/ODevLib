@@ -128,6 +128,7 @@ class RBACSerializerMixin(_Base):
 
         # Short-circuit if we have access to the entire model globally. No further checks are needed.
         if has_access_to_entire_model(global_permissions, model, mode):
+            # logging.warning("Has access to entire model")
             return fields
 
         globally_available_fields = OrderedDict(
@@ -142,15 +143,18 @@ class RBACSerializerMixin(_Base):
         # TODO: check if self.Meta.model works correctly (we don't need additional .__class__ here)
         has_inheritance = issubclass(model, RBACHierarchyModelMixin)
 
-        logging.warning(f"model: {model}")
-        logging.warning(f"has_inheritance: {has_inheritance}")
-        logging.warning(f"instance: {instance}")
-        logging.warning(f"instance.pk: {instance.pk if instance is not None else None}")
+        # logging.warning(f"model: {model._meta.app_label}.{model._meta.model_name}")
+        # logging.warning(f"All fields: {[k for k in fields.keys()]}")
+        # logging.warning(f"Global permissions: {global_permissions}")
+        # logging.warning(f"globally available fields: {globally_available_fields}")
+        # logging.warning(f"has_inheritance: {has_inheritance}")
+        # logging.warning(f"instance: {instance}")
+        # logging.warning(f"instance.pk: {instance.pk if instance is not None else None}")
 
         # If we do not have an instance yet, use parent model to get user roles.
         if instance is None:
             if not has_inheritance:
-                logging.warning("Has no inheritance :(")
+                # logging.warning("Has no inheritance :(")
                 # If we don't even have a parent, return permissions based on global roles only.
                 return globally_available_fields
 

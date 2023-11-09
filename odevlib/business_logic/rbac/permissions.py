@@ -1,7 +1,7 @@
 import itertools
+import logging
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
-import logging
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -110,7 +110,7 @@ def get_instance_rbac_roles(user: AbstractUser, model: type[models.Model], insta
     """
     return RBACRole.objects.filter(
         pk__in=InstanceRoleAssignment.objects.filter(
-            model=f"{model._meta.app_label}__{model._meta.model_name}",
+            model=f"{model._meta.app_label}__{model._meta.model_name}",  # noqa: SLF001
             instance_id=instance_id,
             user=user,
         ).values_list("role", flat=True),
@@ -134,8 +134,14 @@ def get_complete_instance_rbac_roles(
     if inst is None:
         return Error(
             error_code=codes.does_not_exist,
-            eng_description=f"Instance of {model._meta.app_label}.{model._meta.model_name} with id={instance_id} does not exist",
-            ui_description=f"Instance of {model._meta.app_label}.{model._meta.model_name} with id={instance_id} does not exist",
+            eng_description=(
+                f"Instance of {model._meta.app_label}.{model._meta.model_name} "  # noqa: SLF001
+                "with id={instance_id} does not exist"
+            ),
+            ui_description=(
+                f"Instance of {model._meta.app_label}.{model._meta.model_name} "  # noqa: SLF001
+                "with id={instance_id} does not exist"
+            ),
         )
 
     all_models = get_all_rbac_model_parents(inst)
@@ -172,15 +178,17 @@ def has_access_to_entire_model(
     """
     Check if given dict of permissions provides access to the given model with given access mode.
 
-    Available access mode characters: r (read), w (write), d (delete).
+    Available access mode characters: c (create), r (read), u (update), d (delete).
     """
 
-    model_name: str = f"{model._meta.app_label}__{model._meta.model_name}"
+    model_name: str = f"{model._meta.app_label}__{model._meta.model_name}"  # noqa: SLF001
+
     # Find the permission for requested model
     return any(
         permission_name == model_name and all(m in access_mode for m in mode)
         for permission_name, access_mode in permissions.items()
     )
+
 
 
 def get_allowed_model_fields(permissions: Mapping[str, str], model: str, mode: str) -> list[str]:
