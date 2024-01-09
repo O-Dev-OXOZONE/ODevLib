@@ -49,10 +49,10 @@ class OAtomic(transaction.Atomic):
 
 
 def odevlib_atomic(using: str | None | Callable = None, savepoint: bool = False, durable: bool = False):
-    # Bare decorator: @odevlib_transaction_atomic -- although the first argument is called
+    # Bare decorator: @odevlib_atomic -- although the first argument is called
     # `using`, it's actually the function being decorated.
     if callable(using):
         return OAtomic(using="default", savepoint=savepoint, durable=durable)(using)
-    # context manager: with odevlib_transaction_atomic(...): ...
+    # context manager: with odevlib_atomic(...): ...
     else:
         return OAtomic(using=using, savepoint=savepoint, durable=durable)
