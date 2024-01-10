@@ -7,3 +7,5 @@ docs/api
 .coverage
 
 .idea
+
+dist
