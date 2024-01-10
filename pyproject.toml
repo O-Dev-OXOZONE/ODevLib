@@ -3,6 +3,11 @@ name = "odevlib"
 version = "0.1.2"
 description = "ODevLib is a Django helper library that provides a set of tools for developing web applications."
 authors = ["iammaxim"]
+Repository = "https://github.com/O-Dev-OXOZONE/ODevLib"
+Issues = "https://github.com/O-Dev-OXOZONE/ODevLib/issues"
+Changelog = "https://github.com/me/spam/blob/master/CHANGELOG.md"
+readme = "README.md"
+license = {file = "LICENSE"}
 
 
 [tool.poetry.dependencies]
