@@ -21,7 +21,7 @@ from rest_framework.viewsets import ViewSetMixin
 
 from odevlib.errors import codes
 from odevlib.models.errors import Error
-from odevlib.views import OModelMixins
+from odevlib.views.mixins import OModelMixins
 
 T = TypeVar("T", bound=Model)
 
