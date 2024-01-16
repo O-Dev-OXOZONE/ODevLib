@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "odevlib"
-version = "0.1.0"
+version = "0.1.2"
 description = "ODevLib is a Django helper library that provides a set of tools for developing web applications."
 authors = ["iammaxim"]
 
