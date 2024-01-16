@@ -20,3 +20,9 @@ makemigrations +ARGS:
 
 ruff:
   ruff check odevlib odevlib_example
+
+build:
+  poetry build
+
+publish:
+  poetry publish
